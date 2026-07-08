@@ -62,12 +62,31 @@ def _convert_param(val):
     return {"type": "text", "value": str(val)}
 
 
+def _convert_value(val):
+    """Convertir un valor de la API Turso a valor Python"""
+    if val is None:
+        return None
+    if isinstance(val, dict):
+        v = val.get("value")
+        t = val.get("type", "")
+        if t == "integer":
+            return int(v) if v is not None else None
+        if t == "float":
+            return float(v) if v is not None else None
+        if t == "null":
+            return None
+        if t == "blob":
+            return base64.b64decode(v) if v else None
+        return v
+    return val
+
+
 def _convert_row(row_array, col_names):
     """Convertir una fila array a diccionario usando nombres de columna"""
     result = {}
     for i, val in enumerate(row_array):
         if i < len(col_names):
-            result[col_names[i]] = val
+            result[col_names[i]] = _convert_value(val)
     return result
 
 
@@ -89,8 +108,10 @@ class TursoHTTPCursor:
         ])
         if results and results[0].get("type") == "ok":
             resp = results[0].get("response", {})
-            raw_rows = resp.get("rows", [])
-            self._cols = [c.get("name", "") for c in resp.get("cols", [])]
+            # Turso v2 API: los datos estan bajo response.result
+            result_obj = resp.get("result", resp)
+            raw_rows = result_obj.get("rows", [])
+            self._cols = [c.get("name", "") for c in result_obj.get("cols", [])]
             self._rows = [_convert_row(r, self._cols) for r in raw_rows]
         elif results and results[0].get("type") == "error":
             err = results[0].get("error", {})
