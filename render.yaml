@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: scanner-embarque
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --chdir /opt/render/project/src app_multi_v3:app
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: GOOGLE_DRIVE_FOLDER_ID
+        value: 1HChYtZB51EQkuAlHebmllIju1AUsGI1u
+      - key: GOOGLE_DRIVE_CREDENTIALS
+        sync: false
+      - key: TURSO_DATABASE_URL
+        sync: false
+      - key: TURSO_AUTH_TOKEN
+        sync: false

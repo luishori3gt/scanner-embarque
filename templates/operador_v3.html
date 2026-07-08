@@ -1,0 +1,1191 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>📱 Scanner QR - Operador v3</title>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a5276 0%, #2980b9 100%);
+            min-height: 100vh;
+            color: #333;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+            padding: 15px;
+        }
+        .header {
+            text-align: center;
+            color: white;
+            padding: 15px 0;
+        }
+        .header h1 { font-size: 1.6em; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+        .header p { font-size: 0.9em; opacity: 0.9; }
+        .logo {
+            max-width: 150px;
+            margin: 0 auto 10px;
+            display: block;
+        }
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 10px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+        }
+        .pedido-info {
+            background: #e8f8f5;
+            border-left: 4px solid #27ae60;
+            padding: 10px 15px;
+            margin-bottom: 15px;
+            border-radius: 0 8px 8px 0;
+        }
+        .pedido-id {
+            font-family: monospace;
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #1a5276;
+        }
+        .header-data {
+            background: #e8f4fd;
+            border-left: 4px solid #2980b9;
+            padding: 10px 15px;
+            margin-bottom: 15px;
+            border-radius: 0 8px 8px 0;
+            font-size: 0.9em;
+        }
+        .header-data .label {
+            font-size: 0.8em;
+            color: #666;
+            font-weight: bold;
+        }
+        .header-data .value {
+            font-size: 1em;
+            color: #1a5276;
+            margin-bottom: 5px;
+        }
+        .scan-area {
+            background: #f8f9fa;
+            border: 3px dashed #2980b9;
+            border-radius: 12px;
+            padding: 15px;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        .qr-input {
+            width: 100%;
+            padding: 15px;
+            font-size: 1em;
+            border: 2px solid #2980b9;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            font-family: monospace;
+        }
+        .qr-input:focus {
+            outline: none;
+            border-color: #27ae60;
+            box-shadow: 0 0 10px rgba(39, 174, 96, 0.3);
+        }
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 18px;
+            font-size: 1.1em;
+            font-weight: bold;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+        .btn-scan {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: white;
+            box-shadow: 0 4px 15px rgba(231, 76, 60, 0.4);
+        }
+        .btn-scan:hover { transform: translateY(-2px); }
+        .btn-scan:active { transform: scale(0.98); }
+        .btn-camara {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.4);
+        }
+        .btn-camara:hover { transform: translateY(-2px); }
+        .btn-finalizar {
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+            color: white;
+            box-shadow: 0 4px 15px rgba(39, 174, 96, 0.4);
+        }
+        .btn-finalizar:hover { transform: translateY(-2px); }
+        .resultado-scan {
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            text-align: center;
+            font-weight: bold;
+        }
+        .resultado-scan.ok {
+            background: #d5f5e3;
+            border: 2px solid #27ae60;
+            color: #27ae60;
+        }
+        .resultado-scan.faltan {
+            background: #fadbd8;
+            border: 2px solid #e74c3c;
+            color: #e74c3c;
+        }
+        .resultado-scan.sobran {
+            background: #fcf3cf;
+            border: 2px solid #f39c12;
+            color: #f39c12;
+        }
+        .progress-bar {
+            background: #eee;
+            border-radius: 10px;
+            height: 20px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+            border-radius: 10px;
+            transition: width 0.5s;
+            text-align: center;
+            color: white;
+            font-size: 0.8em;
+            line-height: 20px;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .stat-box {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+        }
+        .stat-box .number {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #1a5276;
+        }
+        .stat-box .label {
+            font-size: 0.75em;
+            color: #666;
+        }
+        .hidden { display: none; }
+        .center { text-align: center; }
+
+        #reader {
+            width: 100%;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        .camara-container {
+            margin-bottom: 15px;
+        }
+        .camara-activa {
+            border: 3px solid #27ae60;
+            border-radius: 12px;
+            padding: 5px;
+        }
+        .modo-toggle {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 15px;
+        }
+        .modo-btn {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid #2980b9;
+            background: white;
+            color: #2980b9;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .modo-btn.activo {
+            background: #2980b9;
+            color: white;
+        }
+        .usuario-input {
+            width: 100%;
+            padding: 12px;
+            font-size: 1em;
+            border: 2px solid #2980b9;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        .timer-info {
+            background: #f5eef8;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 10px;
+            text-align: center;
+            font-family: monospace;
+            color: #9b59b6;
+        }
+        .footer {
+            text-align: center;
+            color: white;
+            padding: 15px;
+            font-size: 0.85em;
+            opacity: 0.8;
+        }
+
+        /* Pantalla de escaneo exitoso - FULL SCREEN VERDE */
+        .scan-success-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+            z-index: 9998;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .scan-success-screen.hidden {
+            display: none;
+        }
+
+        .scan-success-screen .big-icon {
+            font-size: 5em;
+            margin-bottom: 20px;
+            animation: scaleIn 0.5s ease;
+        }
+
+        .scan-success-screen .message {
+            color: white;
+            font-size: 1.5em;
+            font-weight: bold;
+            text-align: center;
+            padding: 0 20px;
+        }
+
+        .scan-success-screen .details {
+            color: rgba(255,255,255,0.9);
+            font-size: 1.1em;
+            margin-top: 15px;
+            text-align: center;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes scaleIn {
+            from { transform: scale(0); }
+            to { transform: scale(1); }
+        }
+
+        /* Pantalla de escaneo alerta - FULL SCREEN ROJO/AMARILLO */
+        .scan-alert-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 9998;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .scan-alert-screen.rojo {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+        }
+
+        .scan-alert-screen.amarillo {
+            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+        }
+
+        .scan-alert-screen.hidden {
+            display: none;
+        }
+
+        .scan-alert-screen .big-icon {
+            font-size: 5em;
+            margin-bottom: 20px;
+            animation: scaleIn 0.5s ease;
+        }
+
+        .scan-alert-screen .message {
+            color: white;
+            font-size: 1.5em;
+            font-weight: bold;
+            text-align: center;
+            padding: 0 20px;
+        }
+
+        .scan-alert-screen .details {
+            color: rgba(255,255,255,0.9);
+            font-size: 1.1em;
+            margin-top: 15px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <img src="/static/logo-vpc.png" alt="VPC Logo" class="logo" onerror="this.style.display='none'">
+            <h1>📱 Scanner QR v3</h1>
+            <p>Operador de Embarque - Escaneo en Vivo</p>
+        </div>
+
+        <!-- INFO DEL PEDIDO -->
+        <div class="card">
+            <div class="pedido-info">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <div style="font-size:0.8em; color:#666;">Pedido ID:</div>
+                        <div class="pedido-id" id="pedidoId">{{ pedido_id }}</div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:0.8em; color:#666;">Progreso</div>
+                        <div style="font-size:1.2em; font-weight:bold; color:#27ae60;" id="progresoText">0/0</div>
+                    </div>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill" style="width:0%">0%</div>
+                </div>
+            </div>
+            <div class="header-data" id="headerData">
+                <div class="label" id="labelEmbarque" style="display:none;">🚢 EMBARQUE</div>
+                <div class="value" id="headerEmbarque" style="color:#e67e22; font-size:1.2em; display:none;">-</div>
+                <div class="label">CLIENTE</div>
+                <div class="value" id="headerCliente">Cargando...</div>
+                <div class="label">DESTINATARIO</div>
+                <div class="value" id="headerDestinatario">Cargando...</div>
+                <div class="label">ENTREGA NRO</div>
+                <div class="value" id="headerEntrega">Cargando...</div>
+            </div>
+        </div>
+
+        <!-- USUARIO -->
+        <div class="card">
+            <h3 style="color:#1a5276; margin-bottom:10px; text-align:center;">👤 Usuario Operador</h3>
+            <input type="text" id="usuarioInput" class="usuario-input" placeholder="4 LETRAS" maxlength="4">
+            <p style="text-align:center; color:#666; font-size:0.8em;">Ingresa tu código de 4 letras</p>
+        </div>
+
+        <!-- TIMER -->
+        <div class="card hidden" id="timerCard">
+            <div class="timer-info">
+                <div>⏱️ <span id="timerStatus">Esperando primer scan...</span></div>
+                <div id="timerDisplay" class="hidden">
+                    Inicio: <span id="timerInicio">--</span> | 
+                    Tiempo: <span id="timerTranscurrido">--</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- AREA DE ESCANEO -->
+        <div class="card">
+            <h3 style="color:#1a5276; margin-bottom:10px; text-align:center;">📷 Escanear Etiquetas</h3>
+
+            <div class="modo-toggle">
+                <button class="modo-btn activo" id="btnModoCamara" onclick="cambiarModo('camara')">📷 CÁMARA</button>
+                <button class="modo-btn" id="btnModoManual" onclick="cambiarModo('manual')">⌨️ MANUAL</button>
+            </div>
+
+            <div id="modoCamara">
+                <div class="camara-container" id="camaraContainer">
+                    <div id="reader"></div>
+                </div>
+
+                <!-- PREVIEW DEL QR DETECTADO + BOTON CAPTURAR -->
+                <div id="qrPreviewContainer" class="hidden" style="margin-top:15px; padding:15px; background:#e8f8f5; border:2px solid #27ae60; border-radius:12px; text-align:center;">
+                    <div style="font-size:0.85em; color:#666; margin-bottom:8px;">📷 QR DETECTADO:</div>
+                    <div id="qrPreviewText" style="font-family:monospace; font-size:0.85em; color:#1a5276; word-break:break-all; margin-bottom:12px; background:white; padding:10px; border-radius:8px; border:1px solid #ddd;">
+                        Esperando QR...
+                    </div>
+                    <button class="btn" id="btnCapturarQR" onclick="capturarQRManual()" style="background:linear-gradient(135deg, #2980b9, #3498db); color:white; font-size:1.3em; padding:22px; box-shadow: 0 6px 20px rgba(52,152,219,0.4);">
+                        📷 CAPTURAR QR
+                    </button>
+                    <div style="font-size:0.75em; color:#999; margin-top:8px;">Presiona cuando el QR esté enfocado</div>
+                </div>
+
+                <div class="center" style="margin-top:10px;">
+                    <button class="btn btn-camara" id="btnCamara" onclick="toggleCamara()">
+                        📷 INICIAR CÁMARA
+                    </button>
+                </div>
+            </div>
+
+            <div id="modoManual" class="hidden">
+                <div class="scan-area">
+                    <p style="color:#666; margin-bottom:10px; font-size:0.9em;">Escribe o pega el código QR:</p>
+                    <input type="text" id="qrInput" class="qr-input" placeholder="Pega código QR..."
+                           onkeydown="if(event.key==='Enter') processQR()">
+                    <button class="btn btn-scan" onclick="processQR()">⚡ CAPTURAR QR</button>
+                </div>
+            </div>
+
+            <div id="resultadoScan" class="resultado-scan hidden"></div>
+        </div>
+
+        <!-- ESTADISTICAS -->
+        <div class="card">
+            <h3 style="color:#1a5276; margin-bottom:10px;">📊 Mi Progreso</h3>
+            <div style="margin-bottom:10px;">
+                <h4 style="color:#1a5276; margin-bottom:8px;">📦 ARTÍCULOS</h4>
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="number" id="statArtTotal">0</div>
+                        <div class="label">Total Articulos</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="number" id="statArtOK">0</div>
+                        <div class="label">✅ OK</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="number" id="statArtFaltan">0</div>
+                        <div class="label">🔴 Faltan</div>
+                    </div>
+                    <div class="stat-box" style="background:#fadbd8;">
+                        <div class="number" id="statFueraArt" style="color:#e74c3c;">0</div>
+                        <div class="label" style="color:#e74c3c;">⚠️ Fuera Pedido</div>
+                    </div>
+                </div>
+            </div>
+            <div style="margin-bottom:10px;">
+                <h4 style="color:#1a5276; margin-bottom:8px;">📦 CAJAS (CJ)</h4>
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="number" id="statCajasTotal">0</div>
+                        <div class="label">Total Pedido</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="number" id="statCajasEsc">0</div>
+                        <div class="label">Escaneadas</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="number" id="statCajasOK">0</div>
+                        <div class="label">✅ OK</div>
+                    </div>
+                    <div class="stat-box" style="background:#fadbd8;">
+                        <div class="number" id="statCajasFuera" style="color:#e74c3c;">0</div>
+                        <div class="label" style="color:#e74c3c;">🔴 Fuera</div>
+                    </div>
+                </div>
+                <!-- NUEVA METRICA: Cajas Faltantes por escanear -->
+                <div style="margin-top:8px; padding:12px; background:#fdf2e9; border-radius:8px; text-align:center; border:2px solid #e67e22;">
+                    <div style="font-size:1.8em; font-weight:bold; color:#e67e22;" id="statCajasFaltanEscanear">0</div>
+                    <div style="font-size:0.8em; color:#e67e22; font-weight:bold;">📦 CAJAS FALTANTES POR ESCANEAR</div>
+                </div>
+            </div>
+            <!-- Fuera de pedido ahora integrado en ARTICULOS -->
+        </div>
+
+        <!-- LISTA DE ARTICULOS -->
+        <div class="card">
+            <h3 style="color:#1a5276; margin-bottom:10px;">📋 Artículos</h3>
+            <div id="listaArticulos" style="max-height:300px; overflow-y:auto;">
+                <p style="text-align:center; color:#999; padding:20px; font-size:0.85em;">Esperando datos del servidor...</p>
+            </div>
+        </div>
+
+        <!-- BOTON FINALIZAR -->
+        <div class="card" style="position:sticky; bottom:10px; z-index:100;">
+            <button class="btn btn-finalizar" onclick="finalizarEscaneo()">
+                ✅ TERMINAR ESCANEO
+            </button>
+        </div>
+
+        <!-- RESULTADO FINAL - BLOQUEANTE -->
+        <div class="card hidden" id="finalCard" style="position:fixed; top:0; left:0; width:100%; height:100%; z-index:9999; background:white; overflow-y:auto;">
+            <div style="padding:20px; max-width:500px; margin:0 auto;">
+                <h2 style="color:#1a5276; text-align:center; margin-bottom:20px; font-size:1.8em;">✅ ESCANEO TERMINADO</h2>
+
+                <div style="background:#e8f8f5; border-radius:12px; padding:20px; margin-bottom:20px; text-align:center;">
+                    <div style="font-size:3em; margin-bottom:10px;">🎉</div>
+                    <p style="color:#27ae60; font-weight:bold; font-size:1.2em;">¡Escaneo completado exitosamente!</p>
+                </div>
+
+                <div id="finalResumen"></div>
+
+                <div style="margin-top:20px; padding:15px; background:#f8f9fa; border-radius:8px;">
+                    <p style="text-align:center; color:#666; font-size:0.9em; margin-bottom:15px;">
+                        El administrador ha sido notificado.<br>
+                        Puede descargar el manifiesto desde el panel web.
+                    </p>
+                    <button class="btn btn-primary" onclick="location.reload()" style="width:100%;">
+                        🔄 NUEVO ESCANEO
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PANTALLA ESCANEO EXITOSO - VERDE -->
+    <div id="scanSuccessScreen" class="scan-success-screen hidden">
+        <div class="big-icon">✅</div>
+        <div class="message" id="successMessage">¡CAJA ESCANEADA!</div>
+        <div class="details" id="successDetails"></div>
+    </div>
+
+    <!-- PANTALLA ESCANEO ALERTA - ROJO/AMARILLO -->
+    <div id="scanAlertScreen" class="scan-alert-screen hidden">
+        <div class="big-icon" id="alertIcon">⚠️</div>
+        <div class="message" id="alertMessage"></div>
+        <div class="details" id="alertDetails"></div>
+    </div>
+
+    <div class="footer">
+        <p>Desarrollado por Luis Hori</p>
+    </div>
+
+    <script>
+        const pedidoId = document.getElementById('pedidoId').textContent.trim();
+        let autoRefresh = null;
+        let totalArticulos = 0;
+        let totalEscaneado = 0;
+        let html5QrCode = null;
+        let camaraActiva = false;
+        let modoActual = 'camara';
+        let ultimoQR = '';
+        let timeoutQR = null;
+        let timerInterval = null;
+        let scanIniciado = false;
+
+        autoRefresh = setInterval(refreshData, 3000);
+        refreshData();
+
+        function cambiarModo(modo) {
+            modoActual = modo;
+            if (modo === 'camara') {
+                document.getElementById('modoCamara').classList.remove('hidden');
+                document.getElementById('modoManual').classList.add('hidden');
+                document.getElementById('btnModoCamara').classList.add('activo');
+                document.getElementById('btnModoManual').classList.remove('activo');
+                if (camaraActiva) detenerCamara();
+            } else {
+                document.getElementById('modoCamara').classList.add('hidden');
+                document.getElementById('modoManual').classList.remove('hidden');
+                document.getElementById('btnModoManual').classList.add('activo');
+                document.getElementById('btnModoCamara').classList.remove('activo');
+                detenerCamara();
+                setTimeout(() => document.getElementById('qrInput').focus(), 100);
+            }
+        }
+
+        async function toggleCamara() {
+            const btn = document.getElementById('btnCamara');
+
+            if (camaraActiva) {
+                detenerCamara();
+                btn.textContent = '📷 INICIAR CÁMARA';
+                btn.classList.remove('btn-scan');
+                btn.classList.add('btn-camara');
+                camaraActiva = false;
+            } else {
+                try {
+                    // FORZAR activación de AudioContext antes de iniciar cámara
+                    activarAudioContext();
+
+                    html5QrCode = new Html5Qrcode("reader");
+                    const config = { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 };
+
+                    await html5QrCode.start(
+                        { facingMode: "environment" },
+                        config,
+                        onScanSuccess,
+                        onScanFailure
+                    );
+
+                    camaraActiva = true;
+                    btn.textContent = '⏹️ DETENER CÁMARA';
+                    btn.classList.remove('btn-camara');
+                    btn.classList.add('btn-scan');
+                    document.getElementById('camaraContainer').classList.add('camara-activa');
+                    // Mostrar el preview y boton de captura
+                    document.getElementById('qrPreviewContainer').classList.remove('hidden');
+                    showResultado('ok', '✅ Cámara activada. Apunta al QR y presiona CAPTURAR.');
+                } catch (err) {
+                    showResultado('error', '❌ No se pudo acceder a la cámara. Usa modo manual.');
+                    cambiarModo('manual');
+                }
+            }
+        }
+
+        function activarAudioContext() {
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContext) return;
+
+                const ctx = new AudioContext();
+                if (ctx.state === 'suspended') {
+                    ctx.resume();
+                }
+
+                // Beep de prueba para desbloquear audio en móviles
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.frequency.value = 1000;
+                gain.gain.value = 0.01; // Muy bajo, casi inaudible
+                osc.start(ctx.currentTime);
+                osc.stop(ctx.currentTime + 0.01);
+
+                console.log('AudioContext activado');
+            } catch(e) {
+                console.log('Error activando audio:', e);
+            }
+        }
+
+        function detenerCamara() {
+            if (html5QrCode && camaraActiva) {
+                html5QrCode.stop().then(() => html5QrCode.clear()).catch(err => console.error(err));
+                camaraActiva = false;
+                document.getElementById('camaraContainer').classList.remove('camara-activa');
+                // Ocultar preview y resetear
+                document.getElementById('qrPreviewContainer').classList.add('hidden');
+                qrPendiente = null;
+                const previewEl = document.getElementById('qrPreviewText');
+                if (previewEl) previewEl.textContent = 'Esperando QR...';
+            }
+        }
+
+        // MODO CAPTURA MANUAL: La camara detecta pero NO envia hasta que el operador presione el boton
+        let qrPendiente = null;
+
+        function onScanSuccess(decodedText, decodedResult) {
+            // Ignorar si es el mismo QR que ya tenemos pendiente
+            if (qrPendiente === decodedText) return;
+
+            qrPendiente = decodedText;
+
+            // Mostrar el QR detectado en el preview
+            const previewEl = document.getElementById('qrPreviewText');
+            const previewContainer = document.getElementById('qrPreviewContainer');
+            if (previewEl && previewContainer) {
+                previewEl.textContent = decodedText;
+                previewContainer.classList.remove('hidden');
+
+                // Efecto visual de "QR detectado"
+                previewContainer.style.borderColor = '#27ae60';
+                previewContainer.style.background = '#d5f5e3';
+                setTimeout(() => {
+                    previewContainer.style.borderColor = '#27ae60';
+                    previewContainer.style.background = '#e8f8f5';
+                }, 300);
+            }
+
+            // El QR NO se envia automaticamente - espera a que el operador presione CAPTURAR
+        }
+
+        function onScanFailure(error) {}
+
+        // CAPTURA MANUAL: El operador presiona el boton para enviar el QR
+        function capturarQRManual() {
+            if (!qrPendiente) {
+                mostrarPantallaAlerta('⚠️ SIN QR', 'Apunta la camara a una etiqueta QR primero', 'amarillo');
+                return;
+            }
+
+            // Enviar el QR pendiente
+            enviarQR(qrPendiente);
+
+            // Limpiar despues de enviar para evitar re-envio accidental
+            qrPendiente = null;
+            const previewEl = document.getElementById('qrPreviewText');
+            if (previewEl) previewEl.textContent = 'Esperando QR...';
+        }
+
+        function enviarQR(qrData) {
+            const usuario = document.getElementById('usuarioInput').value.trim().toUpperCase();
+
+            if (!usuario || usuario.length !== 4) {
+                mostrarPantallaAlerta('⚠️ INGRESA TU CÓDIGO', 'Debes ingresar tu código de 4 letras antes de escanear', 'amarillo');
+                return;
+            }
+
+            let cantidad = 1;
+            const cantMatch = qrData.match(/CJ[:\s]*(\d+)/);
+            if (cantMatch) cantidad = parseInt(cantMatch[1]);
+
+            fetch('/scan_qr/' + pedidoId, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ qr_data: qrData, cantidad: cantidad, usuario: usuario })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.duplicado) {
+                    // QR YA ESCANEADO - mostrar alerta amarillo
+                    mostrarPantallaAlerta('⚠️ QR DUPLICADO',
+                        (data.descripcion || 'N/A') + ' | Lote: ' + (data.lote || '-') + '<br>Esta caja ya fue escaneada antes',
+                        'amarillo');
+                    playAlertSound();
+                    return;
+                }
+                if (data.success) {
+                    // Iniciar timer automáticamente en primer scan
+                    if (!scanIniciado) {
+                        scanIniciado = true;
+                        document.getElementById('timerCard').classList.remove('hidden');
+                        document.getElementById('timerStatus').textContent = '⏱️ Escaneo en progreso...';
+                        document.getElementById('timerDisplay').classList.remove('hidden');
+                        document.getElementById('timerInicio').textContent = data.timestamp;
+                        iniciarTimerVisual();
+                    }
+
+                    // MOSTRAR PANTALLA SEGÚN RESULTADO
+                    if (data.color === 'verde') {
+                        // ✅ OK COMPLETO - Pantalla verde
+                        mostrarPantallaExito(data.descripcion, data.lote, data.escaneado + '/' + data.pedido + ' ✅ COMPLETO');
+                        playOKSound();
+                    } else if (data.color === 'rojo') {
+                        // 🟢 RECIBIDO - Faltan más cajas (pantalla VERDE, no roja)
+                        const faltan = Math.abs(data.diferencia);
+                        mostrarPantallaExito(data.descripcion, data.lote, 
+                            '✅ RECIBIDO | Escaneado: ' + data.escaneado + ' | FALTAN: ' + faltan + ' cajas');
+                        playOKSound();
+                    } else if (data.color === 'amarillo') {
+                        // 🟡 FUERA DE PEDIDO
+                        if (data.estado === 'SOBRANTE_INESPERADO') {
+                            mostrarPantallaAlerta('🟡 FUERA DE PEDIDO', 
+                                data.descripcion + ' | Lote: ' + data.lote + '<br>Esta caja NO está en el picking', 'amarillo');
+                        } else {
+                            mostrarPantallaAlerta('🟡 SOBRAN ' + data.diferencia + ' CAJAS', 
+                                data.descripcion + ' | Lote: ' + data.lote, 'amarillo');
+                        }
+                        playAlertSound();
+                    }
+
+                    refreshData();
+                } else {
+                    mostrarPantallaAlerta('❌ ERROR', data.error || 'No se pudo procesar el QR', 'rojo');
+                }
+            })
+            .catch(err => {
+                // Diferenciar entre error de red y error del servidor
+                if (err.message && err.message.includes('404')) {
+                    mostrarPantallaAlerta('⚠️ PEDIDO NO ENCONTRADO', 
+                        'La sesion expiro. Pide al administrador que recargue el PDF.', 'rojo');
+                } else {
+                    mostrarPantallaAlerta('❌ ERROR DE CONEXIÓN', 
+                        'Verifica tu conexion a internet o que el servidor este activo', 'rojo');
+                }
+            });
+        }
+
+        // MOSTRAR PANTALLA VERDE DE ÉXITO
+        function mostrarPantallaExito(descripcion, lote, conteo) {
+            const screen = document.getElementById('scanSuccessScreen');
+            document.getElementById('successDetails').innerHTML = 
+                '<b>' + descripcion + '</b><br>Lote: ' + lote + '<br>' + conteo;
+            screen.classList.remove('hidden');
+
+            // Ocultar después de 2 segundos
+            setTimeout(() => {
+                screen.classList.add('hidden');
+            }, 2000);
+        }
+
+        // MOSTRAR PANTALLA DE ALERTA (ROJO/AMARILLO)
+        function mostrarPantallaAlerta(titulo, detalle, color) {
+            const screen = document.getElementById('scanAlertScreen');
+            screen.className = 'scan-alert-screen ' + color;
+
+            document.getElementById('alertIcon').textContent = color === 'rojo' ? '🔴' : '🟡';
+            document.getElementById('alertMessage').textContent = titulo;
+            document.getElementById('alertDetails').innerHTML = detalle;
+
+            screen.classList.remove('hidden');
+
+            // Ocultar después de 3 segundos (más tiempo para leer alerta)
+            setTimeout(() => {
+                screen.classList.add('hidden');
+            }, 3000);
+        }
+
+        function iniciarTimerVisual() {
+            let segundos = 0;
+            timerInterval = setInterval(() => {
+                segundos++;
+                const mins = Math.floor(segundos / 60);
+                const secs = segundos % 60;
+                document.getElementById('timerTranscurrido').textContent = 
+                    `${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
+            }, 1000);
+        }
+
+        function processQR() {
+            const qrInput = document.getElementById('qrInput');
+            const qrData = qrInput.value.trim();
+            if (!qrData) {
+                showResultado('error', '⚠️ Ingresa un código QR');
+                return;
+            }
+            enviarQR(qrData);
+            qrInput.value = '';
+            qrInput.focus();
+        }
+
+        function showResultado(tipo, mensaje) {
+            const div = document.getElementById('resultadoScan');
+            div.className = 'resultado-scan ' + tipo;
+            div.innerHTML = mensaje;
+            div.classList.remove('hidden');
+            setTimeout(() => div.classList.add('hidden'), 4000);
+        }
+
+        function refreshData() {
+            fetch('/get_status/' + pedidoId)
+            .then(r => r.json())
+            .then(data => {
+                if (data.error) {
+                    console.log('Error en get_status:', data.error);
+                    return;
+                }
+                if (data.resumen) {
+                    updateStats(data.resumen);
+                }
+                if (data.resultados && Array.isArray(data.resultados)) {
+                    updateLista(data.resultados);
+                }
+
+                // Actualizar header info (incluye Embarque si existe)
+                const h = (data.resumen && data.resumen.header_data) || {};
+                const embarqueEl = document.getElementById('headerEmbarque');
+                const labelEmbarqueEl = document.getElementById('labelEmbarque');
+                if (h.embarque) {
+                    embarqueEl.textContent = h.embarque;
+                    embarqueEl.style.display = 'block';
+                    labelEmbarqueEl.style.display = 'block';
+                } else {
+                    embarqueEl.style.display = 'none';
+                    labelEmbarqueEl.style.display = 'none';
+                }
+                document.getElementById('headerCliente').textContent = h.cliente || 'N/A';
+                document.getElementById('headerDestinatario').textContent = h.destinatario || 'N/A';
+                document.getElementById('headerEntrega').textContent = h.entrega_nro || 'N/A';
+            })
+            .catch(err => {
+                console.error('Error en refreshData:', err);
+            });
+        }
+
+        function updateStats(resumen) {
+            try {
+                if (!resumen) return;
+                totalArticulos = resumen.total_articulos || 0;
+                totalEscaneado = resumen.cajas_escaneadas || resumen.total_escaneado || 0;
+
+                // ARTÍCULOS
+                // Logica: Articulos OK + Articulos Faltan = Total Articulos (solo del pedido, fuera NO suman)
+                const artTotalEl = document.getElementById('statArtTotal');
+                const artOKEl = document.getElementById('statArtOK');
+                const artFaltanEl = document.getElementById('statArtFaltan');
+                // Total articulos = solo los del pedido (ok + faltan), fuera NO suman
+                const artTotalPedido = (resumen.ok || 0) + (resumen.faltantes || 0);
+                if (artTotalEl) artTotalEl.textContent = artTotalPedido;
+                if (artOKEl) artOKEl.textContent = resumen.ok || 0;
+                if (artFaltanEl) artFaltanEl.textContent = resumen.faltantes || 0;
+
+                // CAJAS
+                // Logica: Cajas OK + Cajas Fuera = Cajas Escaneadas
+                const cajasTotalEl = document.getElementById('statCajasTotal');
+                const cajasEscEl = document.getElementById('statCajasEsc');
+                const cajasOKEl = document.getElementById('statCajasOK');
+                const cajasFueraEl = document.getElementById('statCajasFuera');
+                if (cajasTotalEl) cajasTotalEl.textContent = resumen.total_pedido || 0;
+                if (cajasEscEl) cajasEscEl.textContent = totalEscaneado;
+                if (cajasOKEl) cajasOKEl.textContent = resumen.cajas_ok || 0;
+                if (cajasFueraEl) cajasFueraEl.textContent = resumen.cajas_fuera_pedido || 0;
+
+                // NUEVA METRICA: Cajas Faltantes por escanear
+                const cajasFaltanEscEl = document.getElementById('statCajasFaltanEscanear');
+                if (cajasFaltanEscEl) cajasFaltanEscEl.textContent = resumen.cajas_faltantes_por_escanear || 0;
+
+                // FUERA DE PEDIDO
+                const fueraArtEl = document.getElementById('statFueraArt');
+                if (fueraArtEl) fueraArtEl.textContent = resumen.articulos_fuera_pedido || 0;
+
+                // PROGRESO
+                const progresoTextEl = document.getElementById('progresoText');
+                const progressFillEl = document.getElementById('progressFill');
+                if (progresoTextEl) progresoTextEl.textContent = totalEscaneado + ' / ' + (resumen.total_pedido || 0) + ' CJ';
+                if (progressFillEl && resumen.total_pedido > 0) {
+                    const pct = Math.min(100, (totalEscaneado / resumen.total_pedido) * 100);
+                    progressFillEl.style.width = pct + '%';
+                    progressFillEl.textContent = Math.round(pct) + '%';
+                }
+            } catch (e) {
+                console.error('Error en updateStats:', e);
+            }
+        }
+
+        function updateLista(resultados) {
+            if (!resultados || !Array.isArray(resultados) || resultados.length === 0) {
+                document.getElementById('listaArticulos').innerHTML = '<div style="padding:15px; text-align:center; color:#999; font-size:0.85em;">Sin articulos escaneados aun</div>';
+                return;
+            }
+            let html = '';
+            resultados.forEach(r => {
+                const color = r.color === 'verde' ? '#27ae60' : r.color === 'rojo' ? '#e74c3c' : '#f39c12';
+                const icon = r.color === 'verde' ? '✅' : r.color === 'rojo' ? '🔴' : '🟡';
+                html += `
+                    <div style="padding:8px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <div style="font-weight:bold; font-size:0.9em;">${r.descripcion || 'N/A'}</div>
+                            <div style="font-size:0.75em; color:#666;">Lote: ${r.lote || '-'} | Cal: ${r.calibre || '-'}</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div style="font-weight:bold; color:${color}; font-size:1.1em;">${icon}</div>
+                            <div style="font-size:0.75em; color:#666;">${r.escaneado || 0}/${r.pedido || 0}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            document.getElementById('listaArticulos').innerHTML = html;
+        }
+
+        function finalizarEscaneo() {
+            if (!confirm('¿Terminar escaneo? Se generará el reporte final.')) return;
+
+            // Evitar doble clic - deshabilitar boton temporalmente
+            const btnFinalizar = document.querySelector('.btn-finalizar');
+            if (btnFinalizar) {
+                btnFinalizar.disabled = true;
+                btnFinalizar.textContent = '⏳ PROCESANDO...';
+            }
+
+            detenerCamara();
+            clearInterval(autoRefresh);
+            if (timerInterval) clearInterval(timerInterval);
+
+            fetch('/finalizar/' + pedidoId)
+            .then(r => {
+                if (!r.ok) {
+                    return r.json().then(err => { throw new Error(err.error || 'Error del servidor'); });
+                }
+                return r.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    // MOSTRAR pantalla bloqueante
+                    document.getElementById('finalCard').classList.remove('hidden');
+
+                    const r = data.resumen;
+                    const cajasFuera = r.cajas_fuera_pedido || 0;
+                    const artFuera = r.articulos_fuera_pedido || 0;
+                    // Calcular total articulos del pedido (ok + faltan, fuera NO suman)
+                    const artTotalPedido = (r.ok || 0) + (r.faltantes || 0);
+                    // Cajas faltantes por escanear
+                    const cajasFaltanEscanear = r.cajas_faltantes_por_escanear || Math.max(0, (r.total_pedido || 0) - (r.cajas_ok || 0));
+
+                    // Banner de fuera de pedido si aplica
+                    let htmlFuera = '';
+                    if (cajasFuera > 0) {
+                        htmlFuera = `
+                            <div style="margin:10px 0; padding:10px; background:#fadbd8; border:2px solid #e74c3c; border-radius:8px; text-align:center;">
+                                <div style="color:#e74c3c; font-weight:bold; font-size:1.1em;">⚠️ ${cajasFuera} CAJA${cajasFuera > 1 ? 'S' : ''} FUERA DEL PEDIDO</div>
+                                <div style="color:#666; font-size:0.8em;">${artFuera} articulo(s) no estan en el picking</div>
+                            </div>
+                        `;
+                    }
+
+                    document.getElementById('finalResumen').innerHTML = `
+                        <div style="margin-bottom:15px;">
+                            <h4 style="color:#1a5276; margin-bottom:10px;">📦 RESUMEN ARTICULOS</h4>
+                            <div class="stats-grid">
+                                <div class="stat-box" style="background:#e8f4fd;">
+                                    <div class="number" style="color:#2980b9;">${artTotalPedido}</div>
+                                    <div class="label">Total Articulos</div>
+                                </div>
+                                <div class="stat-box" style="background:#d5f5e3;">
+                                    <div class="number" style="color:#27ae60;">${r.ok}</div>
+                                    <div class="label">✅ Articulos OK</div>
+                                </div>
+                                <div class="stat-box" style="background:#fadbd8;">
+                                    <div class="number" style="color:#e74c3c;">${r.faltantes}</div>
+                                    <div class="label">🔴 Articulos Faltan</div>
+                                </div>
+                            </div>
+                            ${artFuera > 0 ? `
+                            <div style="margin-top:8px; padding:10px; background:#fadbd8; border-radius:8px; text-align:center;">
+                                <div style="font-size:1.3em; font-weight:bold; color:#e74c3c;">${artFuera}</div>
+                                <div style="font-size:0.8em; color:#e74c3c;">⚠️ Articulos Fuera de Pedido (no suman al total)</div>
+                            </div>
+                            ` : ''}
+                        </div>
+
+                        <div style="margin-bottom:15px;">
+                            <h4 style="color:#1a5276; margin-bottom:10px;">📦 RESUMEN CAJAS</h4>
+                            <div class="stats-grid">
+                                <div class="stat-box" style="background:#e8f4fd;">
+                                    <div class="number" style="color:#2980b9;">${r.total_pedido}</div>
+                                    <div class="label">Cajas del Pedido</div>
+                                </div>
+                                <div class="stat-box" style="background:#d5f5e3;">
+                                    <div class="number" style="color:#27ae60;">${r.cajas_ok || 0}</div>
+                                    <div class="label">✅ Cajas OK</div>
+                                </div>
+                                <div class="stat-box" style="background:#e8f4fd;">
+                                    <div class="number" style="color:#2980b9;">${r.total_escaneado}</div>
+                                    <div class="label">Cajas Escaneadas</div>
+                                </div>
+                                <div class="stat-box" style="background:#fadbd8;">
+                                    <div class="number" style="color:#e74c3c;">${r.cajas_fuera_pedido || 0}</div>
+                                    <div class="label">🔴 Cajas Fuera Pedido</div>
+                                </div>
+                            </div>
+                            <!-- NUEVA METRICA: Cajas Faltantes por escanear -->
+                            <div style="margin-top:8px; padding:12px; background:#fdf2e9; border-radius:8px; text-align:center; border:2px solid #e67e22;">
+                                <div style="font-size:1.8em; font-weight:bold; color:#e67e22;">${cajasFaltanEscanear}</div>
+                                <div style="font-size:0.8em; color:#e67e22; font-weight:bold;">📦 CAJAS FALTANTES POR ESCANEAR</div>
+                            </div>
+                            ${htmlFuera}
+                        </div>
+
+                        <div style="background:#f5eef8; border-radius:8px; padding:15px; text-align:center;">
+                            <div style="font-family:monospace; color:#9b59b6; font-size:1.1em;">
+                                ⏱️ ${r.tiempo_total || '--'}<br>
+                                👤 ${r.usuario || 'N/A'}
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    // El servidor respondio pero sin success
+                    throw new Error(data.error || 'No se pudo finalizar el escaneo');
+                }
+            })
+            .catch(err => {
+                console.error('Error finalizando escaneo:', err);
+                mostrarPantallaAlerta('❌ ERROR AL CERRAR', 
+                    'Error: ' + (err.message || 'Intenta de nuevo') + '<br><br>Si el problema persiste, presiona TERMINAR ESCANEO nuevamente.', 
+                    'rojo');
+                // Rehabilitar boton para que pueda intentar de nuevo
+                if (btnFinalizar) {
+                    btnFinalizar.disabled = false;
+                    btnFinalizar.textContent = '✅ TERMINAR ESCANEO';
+                }
+            });
+        }
+
+        // SONIDO - Versión agresiva para móviles
+        let audioCtxGlobal = null;
+
+        function initAudio() {
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContext) return false;
+
+                if (!audioCtxGlobal || audioCtxGlobal.state === 'closed') {
+                    audioCtxGlobal = new AudioContext();
+                }
+
+                if (audioCtxGlobal.state === 'suspended') {
+                    audioCtxGlobal.resume();
+                }
+
+                return true;
+            } catch(e) {
+                console.log('Error init audio:', e);
+                return false;
+            }
+        }
+
+        function playAlertSound() {
+            if (!initAudio()) return;
+
+            try {
+                const osc = audioCtxGlobal.createOscillator();
+                const gain = audioCtxGlobal.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtxGlobal.destination);
+
+                // BEEP BEEP BEEP (3 beeps rápidos de alerta)
+                const now = audioCtxGlobal.currentTime;
+                osc.type = 'square';
+
+                // Beep 1
+                gain.gain.setValueAtTime(0.8, now);
+                gain.gain.setValueAtTime(0, now + 0.1);
+                gain.gain.setValueAtTime(0.8, now + 0.15);
+                gain.gain.setValueAtTime(0, now + 0.25);
+                gain.gain.setValueAtTime(0.8, now + 0.3);
+                gain.gain.setValueAtTime(0, now + 0.4);
+
+                osc.frequency.setValueAtTime(800, now);
+                osc.frequency.setValueAtTime(600, now + 0.15);
+                osc.frequency.setValueAtTime(800, now + 0.3);
+
+                osc.start(now);
+                osc.stop(now + 0.4);
+            } catch(e) { console.log('Error alert:', e); }
+        }
+
+        function playOKSound() {
+            if (!initAudio()) return;
+
+            try {
+                const osc = audioCtxGlobal.createOscillator();
+                const gain = audioCtxGlobal.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtxGlobal.destination);
+
+                // BEEP largo y fuerte de éxito
+                const now = audioCtxGlobal.currentTime;
+                osc.type = 'sine';
+
+                gain.gain.setValueAtTime(0.5, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+
+                osc.frequency.setValueAtTime(1500, now);
+                osc.frequency.exponentialRampToValueAtTime(2000, now + 0.25);
+
+                osc.start(now);
+                osc.stop(now + 0.5);
+            } catch(e) { console.log('Error OK:', e); }
+        }
+
+        // Inicializar audio en CUALQUIER interacción
+        document.addEventListener('click', initAudio, { once: false });
+        document.addEventListener('touchstart', initAudio, { once: false });
+        document.addEventListener('keydown', initAudio, { once: false });
+
+        document.addEventListener('paste', function(e) {
+            if (modoActual === 'manual') {
+                const qrInput = document.getElementById('qrInput');
+                if (document.activeElement !== qrInput) {
+                    qrInput.focus();
+                    setTimeout(() => {
+                        if (qrInput.value.length > 10) processQR();
+                    }, 100);
+                }
+            }
+        });
+
+        window.addEventListener('beforeunload', function() {
+            detenerCamara();
+        });
+    </script>
+</body>
+</html>
