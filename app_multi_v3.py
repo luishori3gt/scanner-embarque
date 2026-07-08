@@ -526,6 +526,10 @@ def upload_pdf():
     global PEDIDOS_DB, USO_STATS
 
     USO_STATS['sesiones_totales'] += 1
+    try:
+        database.increment_sesiones_db()
+    except Exception as e:
+        print(f"[DB] Error incrementando sesiones: {e}")
 
     pdf_file = request.files.get("pdf_picking")
     if not pdf_file:
@@ -615,6 +619,10 @@ def upload_excel():
     global PEDIDOS_DB, USO_STATS
 
     USO_STATS['sesiones_totales'] += 1
+    try:
+        database.increment_sesiones_db()
+    except Exception as e:
+        print(f"[DB] Error incrementando sesiones: {e}")
 
     excel_file = request.files.get("excel_traslado")
     if not excel_file:
@@ -1006,6 +1014,10 @@ def finalizar_scan(pedido_id):
     db = PEDIDOS_DB[pedido_id]
     total_escaneado = sum(v['escaneado'] for v in db['pedido_cache'].values())
     USO_STATS['cajas_escaneadas_totales'] += total_escaneado
+    try:
+        database.update_cajas_escaneadas_db(total_escaneado)
+    except Exception as e:
+        print(f"[DB] Error actualizando cajas: {e}")
     USO_STATS['historial'].append({
         'pedido_id': pedido_id,
         'cliente': db['info']['header_data'].get('cliente', ''),

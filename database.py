@@ -326,6 +326,16 @@ def init_db():
             )
         ''')
 
+        # Tabla de estadisticas globales (persiste sesiones y cajas)
+        cur.execute('''
+            CREATE TABLE IF NOT EXISTS app_stats (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                sesiones_totales INTEGER DEFAULT 0,
+                cajas_escaneadas_totales INTEGER DEFAULT 0
+            )
+        ''')
+        cur.execute('INSERT OR IGNORE INTO app_stats (id, sesiones_totales, cajas_escaneadas_totales) VALUES (1, 0, 0)')
+
         # Indices para performance
         cur.execute('CREATE INDEX IF NOT EXISTS idx_items_pid ON pedidos_items(pedido_id)')
         cur.execute('CREATE INDEX IF NOT EXISTS idx_scans_pid ON pedidos_scans(pedido_id)')
@@ -622,8 +632,15 @@ def cargar_historial_db():
 
 
 def get_stats_db():
-    """Obtener estadisticas agregadas del historial"""
+    """Obtener estadisticas agregadas desde app_stats + historial"""
+    # Primero intentar leer de app_stats
     row = _execute(
+        'SELECT sesiones_totales, cajas_escaneadas_totales FROM app_stats WHERE id = 1',
+        fetchone=True
+    )
+
+    # Tambien contar del historial
+    hist_row = _execute(
         '''SELECT COUNT(*) as total_pedidos,
                   COALESCE(SUM(total_escaneado), 0) as total_cajas,
                   COALESCE(SUM(total_pedido), 0) as total_pedido_cajas
@@ -631,14 +648,42 @@ def get_stats_db():
         fetchone=True
     )
 
-    if not row:
-        return {'sesiones_totales': 0, 'cajas_escaneadas_totales': 0, 'total_pedido_cajas': 0}
+    sesiones = 0
+    cajas = 0
+
+    if row:
+        sesiones = row.get('sesiones_totales') or 0
+        cajas = row.get('cajas_escaneadas_totales') or 0
+
+    # Si el historial tiene mas datos, usar esos (compatibilidad)
+    if hist_row:
+        hist_pedidos = hist_row.get('total_pedidos') or 0
+        hist_cajas = hist_row.get('total_cajas') or 0
+        sesiones = max(sesiones, hist_pedidos)
+        cajas = max(cajas, hist_cajas)
 
     return {
-        'sesiones_totales': row.get('total_pedidos') or 0,
-        'cajas_escaneadas_totales': row.get('total_cajas') or 0,
-        'total_pedido_cajas': row.get('total_pedido_cajas') or 0
+        'sesiones_totales': sesiones,
+        'cajas_escaneadas_totales': cajas,
+        'total_pedido_cajas': (hist_row.get('total_pedido_cajas') or 0) if hist_row else 0
     }
+
+
+def increment_sesiones_db():
+    """Incrementar el contador de sesiones en la base de datos"""
+    _execute(
+        'UPDATE app_stats SET sesiones_totales = sesiones_totales + 1 WHERE id = 1',
+        commit=True
+    )
+
+
+def update_cajas_escaneadas_db(cantidad):
+    """Sumar cajas escaneadas al total global"""
+    _execute(
+        'UPDATE app_stats SET cajas_escaneadas_totales = cajas_escaneadas_totales + ? WHERE id = 1',
+        (cantidad,),
+        commit=True
+    )
 
 
 def get_pedido_detalle_db(pedido_id):
