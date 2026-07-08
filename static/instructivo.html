@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Instructivo - Scanner de Embarque VPC</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
+            color: #333;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            padding: 40px 20px;
+            background: linear-gradient(135deg, #1a5276 0%, #2980b9 100%);
+            color: white;
+            border-radius: 0 0 20px 20px;
+            margin-bottom: 30px;
+        }
+        .header h1 { font-size: 2em; margin-bottom: 10px; }
+        .header p { font-size: 1.1em; opacity: 0.9; }
+        .logo {
+            max-width: 180px;
+            margin-bottom: 20px;
+        }
+        .section {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+        .section h2 {
+            color: #1a5276;
+            font-size: 1.5em;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #2980b9;
+        }
+        .section h3 {
+            color: #2980b9;
+            font-size: 1.2em;
+            margin: 20px 0 10px;
+        }
+        .step {
+            display: flex;
+            gap: 15px;
+            margin: 15px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            border-left: 4px solid #2980b9;
+        }
+        .step-number {
+            min-width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #2980b9, #1a5276);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+        .step-content { flex: 1; }
+        .step-content strong { color: #1a5276; }
+        .warning-box {
+            background: #fff3cd;
+            border: 2px solid #f39c12;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .warning-box::before { content: "⚠️ "; }
+        .danger-box {
+            background: #f8d7da;
+            border: 2px solid #e74c3c;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .danger-box::before { content: "🔴 "; }
+        .success-box {
+            background: #d4edda;
+            border: 2px solid #27ae60;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .success-box::before { content: "✅ "; }
+        .info-box {
+            background: #d1ecf1;
+            border: 2px solid #17a2b8;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .info-box::before { content: "ℹ️ "; }
+        .role-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9em;
+            margin-bottom: 10px;
+        }
+        .role-admin { background: #d4edda; color: #155724; }
+        .role-operator { background: #cce5ff; color: #004085; }
+        .screenshot-placeholder {
+            background: #e9ecef;
+            border: 2px dashed #adb5bd;
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            margin: 10px 0;
+            color: #6c757d;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+        }
+        th {
+            background: #1a5276;
+            color: white;
+        }
+        tr:nth-child(even) { background: #f8f9fa; }
+        .color-dot {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            margin-right: 5px;
+            vertical-align: middle;
+        }
+        .dot-green { background: #27ae60; }
+        .dot-red { background: #e74c3c; }
+        .dot-yellow { background: #f39c12; }
+        .footer {
+            text-align: center;
+            padding: 30px;
+            color: #666;
+            font-size: 0.9em;
+        }
+        .qr-sample {
+            background: white;
+            border: 2px solid #1a5276;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 0.85em;
+        }
+        @media print {
+            body { background: white; }
+            .section { box-shadow: none; border: 1px solid #ddd; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <img src="/static/logo-vpc.png" alt="VPC Logo" class="logo" onerror="this.style.display='none'">
+        <h1>📖 Instructivo de Uso</h1>
+        <p>Scanner de Embarque - Control de Picking vs Escaneo</p>
+        <p style="margin-top:10px; font-size:0.9em;">Versión 3.0 | VPC</p>
+    </div>
+
+    <div class="container">
+
+        <!-- QUE ES -->
+        <div class="section">
+            <h2>📋 ¿Qué es esta aplicación?</h2>
+            <p>Es una herramienta para <strong>verificar que lo que se carga en el camión coincida con lo que dice el picking (PDF)</strong>.</p>
+            <p>Funciona con <strong>dos dispositivos</strong> trabajando juntos:</p>
+            <table>
+                <tr>
+                    <th>Rol</th>
+                    <th>Dispositivo</th>
+                    <th>Función</th>
+                </tr>
+                <tr>
+                    <td><span class="role-badge role-admin">👤 ADMIN</span></td>
+                    <td>Computadora / Laptop</td>
+                    <td>Sube el PDF, genera el QR, monitorea en tiempo real</td>
+                </tr>
+                <tr>
+                    <td><span class="role-badge role-operator">📱 OPERADOR</span></td>
+                    <td>Celular con cámara</td>
+                    <td>Escanea las etiquetas QR de las cajas</td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- FLUJO GENERAL -->
+        <div class="section">
+            <h2>🔄 Flujo de trabajo (paso a paso)</h2>
+
+            <div class="step">
+                <div class="step-number">1</div>
+                <div class="step-content">
+                    <strong>El Admin sube el Picking (PDF)</strong> al panel web desde su computadora.
+                </div>
+            </div>
+
+            <div class="step">
+                <div class="step-number">2</div>
+                <div class="step-content">
+                    <strong>El sistema genera un código QR.</strong> El Admin muestra ese QR en pantalla.
+                </div>
+            </div>
+
+            <div class="step">
+                <div class="step-number">3</div>
+                <div class="step-content">
+                    <strong>El Operador escanea el QR con su celular</strong> y entra a la app del operador.
+                </div>
+            </div>
+
+            <div class="step">
+                <div class="step-number">4</div>
+                <div class="step-content">
+                    <strong>El Operador escanea las etiquetas</strong> de cada caja con la cámara del celular.
+                </div>
+            </div>
+
+            <div class="step">
+                <div class="step-number">5</div>
+                <div class="step-content">
+                    <strong>El Admin ve el progreso en vivo</strong> en su computadora (dashboard).
+                </div>
+            </div>
+
+            <div class="step">
+                <div class="step-number">6</div>
+                <div class="step-content">
+                    <strong>El Operador presiona "TERMINAR ESCANEO"</strong> cuando termina.
+                </div>
+            </div>
+
+            <div class="step">
+                <div class="step-number">7</div>
+                <div class="step-content">
+                    <strong>El Admin descarga el Excel y PDF</strong> del manifiesto.
+                </div>
+            </div>
+        </div>
+
+        <!-- ADMIN -->
+        <div class="section">
+            <span class="role-badge role-admin">👤 PARA EL ADMIN (Computadora)</span>
+            <h2>⚙️ Panel de Administración</h2>
+
+            <h3>Paso 1: Configurar la red</h3>
+            <div class="info-box">
+                En la sección "Configuración de Red", ingresa la URL que aparece en Render (ej: <code>https://scanner-embarque.onrender.com</code>) o la IP local si estás en la bodega.
+            </div>
+
+            <h3>Paso 2: Subir el Picking (PDF)</h3>
+            <div class="step">
+                <div class="step-number">1</div>
+                <div class="step-content">Presiona <strong>"📤 CARGAR PEDIDO"</strong> y selecciona el archivo PDF del picking.</div>
+            </div>
+            <div class="step">
+                <div class="step-number">2</div>
+                <div class="step-content">Verás la información del pedido: <strong>Cliente, Destinatario y Número de Entrega</strong>.</div>
+            </div>
+            <div class="step">
+                <div class="step-number">3</div>
+                <div class="step-content">Aparece un <strong>código QR</strong>. El operador debe escanearlo con su celular.</div>
+            </div>
+
+            <h3>Paso 3: Monitorear en tiempo real</h3>
+            <p>El <strong>Dashboard en Vivo</strong> se actualiza cada 2 segundos automáticamente. Muestra:</p>
+            <table>
+                <tr><th>Indicador</th><th>Significado</th></tr>
+                <tr><td><span class="color-dot dot-green"></span> Verde (OK)</td><td>Cantidad escaneada = Cantidad del picking. Todo bien.</td></tr>
+                <tr><td><span class="color-dot dot-red"></span> Rojo (Faltan)</td><td>Faltan cajas por escanear de ese artículo.</td></tr>
+                <tr><td><span class="color-dot dot-yellow"></span> Amarillo (Sobran)</td><td>Se escanearon más cajas de las que pide el picking.</td></tr>
+                <tr><td><span class="color-dot dot-red"></span> Fuera de Pedido</td><td>La caja escaneada NO está en el picking.</td></tr>
+            </table>
+
+            <h3>Paso 4: Al finalizar</h3>
+            <div class="step">
+                <div class="step-number">1</div>
+                <div class="step-content">Cuando el operador termine, presiona <strong>"📊 Excel"</strong> para descargar el reporte.</div>
+            </div>
+            <div class="step">
+                <div class="step-number">2</div>
+                <div class="step-content">También puedes presionar <strong>"📄 PDF Manifiesto"</strong> para el formato PDF.</div>
+            </div>
+            <div class="step">
+                <div class="step-number">3</div>
+                <div class="step-content">Para guardar en Google Drive, presiona <strong>"☁️ Guardar PDF en Drive"</strong> o <strong>"☁️ Guardar Excel en Drive"</strong>.</div>
+            </div>
+
+            <h3>Tab Monitoreo</h3>
+            <p>En la pestaña <strong>"📊 Monitoreo"</strong> puedes ver el historial de todos los embarques realizados con su status, tiempos, cajas y usuario operador.</p>
+        </div>
+
+        <!-- OPERADOR -->
+        <div class="section">
+            <span class="role-badge role-operator">📱 PARA EL OPERADOR (Celular)</span>
+            <h2>📱 App del Operador</h2>
+
+            <h3>Paso 1: Escanear el QR de conexión</h3>
+            <div class="info-box">
+                Abre la cámara de tu celular y apunta al <strong>código QR</strong> que muestra el Admin en su computadora. Se abrirá automáticamente la app del operador.
+            </div>
+
+            <h3>Paso 2: Ingresar tu código de usuario</h3>
+            <div class="warning-box">
+                <strong>Importante:</strong> Ingresa tu código de <strong>4 letras</strong> antes de empezar a escanear. Si no lo haces, no podrás escanear cajas.
+            </div>
+
+            <h3>Paso 3: Escanear etiquetas de las cajas</h3>
+            <div class="step">
+                <div class="step-number">1</div>
+                <div class="step-content">Activa la cámara presionando <strong>"📷 INICIAR CÁMARA"</strong>.</div>
+            </div>
+            <div class="step">
+                <div class="step-number">2</div>
+                <div class="step-content">Apunta la cámara al <strong>código QR de la etiqueta</strong> de cada caja.</div>
+            </div>
+            <div class="step">
+                <div class="step-number">3</div>
+                <div class="step-content">La app te dirá si la caja está <strong>OK</strong>, <strong>falta</strong>, <strong>sobra</strong> o es <strong>fuera de pedido</strong>.</div>
+            </div>
+
+            <h3>Lo que ves al escanear</h3>
+            <table>
+                <tr><th>Pantalla</th><th>Significado</th><th>Acción</th></tr>
+                <tr><td>🟢 Pantalla VERDE</td><td>La caja está en el picking y la cantidad coincide.</td><td>Sigue escaneando.</td></tr>
+                <tr><td>🔴 Pantalla ROJA</td><td>Faltan cajas de ese artículo.</td><td>Sigue escaneando más cajas de ese artículo.</td></tr>
+                <tr><td>🟡 Pantalla AMARILLA</td><td>Esta caja NO está en el picking (fuera de pedido).</td><td>Verifica si la caja va en otro camión.</td></tr>
+            </table>
+
+            <h3>Paso 4: Modo Manual (si la cámara falla)</h3>
+            <div class="info-box">
+                Si la cámara no funciona, presiona <strong>"⌨️ MANUAL"</strong> y escribe o pega el código del QR en el campo de texto. Luego presiona <strong>"⚡ CAPTURAR QR"</strong>.
+            </div>
+
+            <h3>Paso 5: Terminar el escaneo</h3>
+            <div class="step">
+                <div class="step-number">1</div>
+                <div class="step-content">Cuando termines de escanear todas las cajas, presiona el botón verde <strong>"✅ TERMINAR ESCANEO"</strong>.</div>
+            </div>
+            <div class="step">
+                <div class="step-number">2</div>
+                <div class="step-content">Confirma que quieres terminar.</div>
+            </div>
+            <div class="step">
+                <div class="step-number">3</div>
+                <div class="step-content">Verás el <strong>resumen final</strong> con: artículos OK, faltantes, sobrantes y cajas fuera de pedido.</div>
+            </div>
+            <div class="success-box">
+                <strong>Nota:</strong> Las cajas que aparecen como "Fuera de Pedido" <strong>no se suman</strong> a las escaneadas correctas. El Admin lo verá separado en su dashboard.
+            </div>
+        </div>
+
+        <!-- ETIQUETA -->
+        <div class="section">
+            <h2>🏷️ Cómo leer la etiqueta de la caja</h2>
+            <p>Cada caja tiene una etiqueta con un <strong>código QR (código de barras cuadrado)</strong> que contiene:</p>
+            <div class="qr-sample">
+                <strong>Ejemplo de QR:</strong><br>
+                <code>(01)100000001380 (10)0000379692</code><br><br>
+                <strong>(01)</strong> = Código del producto (GTIN)<br>
+                <strong>(10)</strong> = Número de lote (LOTE)
+            </div>
+            <p>La app lee automáticamente el <strong>número de lote</strong> del QR y lo compara con el picking.</p>
+        </div>
+
+        <!-- PROBLEMAS -->
+        <div class="section">
+            <h2>🔧 Solución de problemas comunes</h2>
+
+            <h3>"Pedido no encontrado" o "Error de conexión"</h3>
+            <div class="danger-box">
+                <strong>Causa:</strong> El servidor se durmió (plan gratuito) o se reinició.<br><br>
+                <strong>Solución:</strong><br>
+                1. El Admin debe <strong>recargar la página</strong> y subir el PDF de nuevo.<br>
+                2. El Operador debe <strong>escanear el nuevo QR</strong>.<br>
+                3. Los escaneos anteriores se pierden, así que hay que empezar de nuevo.
+            </div>
+
+            <h3>La cámara no abre en el celular</h3>
+            <div class="warning-box">
+                <strong>Solución:</strong><br>
+                1. Asegúrate de usar <strong>HTTPS</strong> (la URL debe empezar con https://).<br>
+                2. Permite el acceso a la cámara cuando el navegador lo pida.<br>
+                3. Usa el <strong>modo Manual</strong> como alternativa.
+            </div>
+
+            <h3>"No se pudo extraer lote del QR"</h3>
+            <div class="warning-box">
+                <strong>Causa:</strong> El código QR de la etiqueta está dañado o no es legible.<br><br>
+                <strong>Solución:</strong><br>
+                1. Intenta escanear de nuevo.<br>
+                2. Usa el <strong>modo Manual</strong> y escribe el número de lote (los 10 dígitos después de "LOTE:").<br>
+                3. Si la etiqueta está muy dañada, avisa al Admin.
+            </div>
+
+            <h3>La caja aparece como "Fuera de Pedido" pero sí va en el camión</h3>
+            <div class="info-box">
+                <strong>Esto significa que la caja no está en el picking (PDF) original.</strong><br><br>
+                1. Verifica que subiste el PDF correcto.<br>
+                2. Si la caja sí debe ir, el Admin debe anotarlo manualmente en el manifiesto.<br>
+                3. Las cajas fuera de pedido aparecen separadas en el reporte Excel/PDF.
+            </div>
+
+            <h3>El sonido no suena al escanear</h3>
+            <div class="info-box">
+                En iPhone, el sonido solo funciona después de que toques la pantalla una vez. Toca cualquier botón antes de empezar a escanear. En Android debería funcionar automáticamente.
+            </div>
+
+            <h3>El progreso no se actualiza en el Admin</h3>
+            <div class="warning-box">
+                <strong>Solución:</strong><br>
+                1. Recarga la página del Admin (F5).<br>
+                2. Verifica que el celular del operador tenga internet/WiFi.<br>
+                3. Asegúrate de que ambos dispositivos estén en la misma red si es local.
+            </div>
+        </div>
+
+        <!-- RECOMENDACIONES -->
+        <div class="section">
+            <h2>💡 Recomendaciones para el equipo</h2>
+
+            <div class="success-box">
+                <strong>Antes de empezar:</strong><br>
+                - Asegúrate de que el picking (PDF) sea el correcto.<br>
+                - Verifica que ambos dispositivos (PC y celular) tengan internet.<br>
+                - El operador debe tener su código de 4 letras listo.
+            </div>
+
+            <div class="success-box">
+                <strong>Durante el escaneo:</strong><br>
+                - Escanea una caja a la vez.<br>
+                - Si la pantalla se pone amarilla (fuera de pedido), revisa la caja antes de continuar.<br>
+                - No cierres la app del operador ni recargues la página del Admin.
+            </div>
+
+            <div class="success-box">
+                <strong>Al finalizar:</strong><br>
+                - Revisa que no haya artículos en rojo (faltantes) antes de cerrar.<br>
+                - Descarga el Excel y el PDF como respaldo.<br>
+                - Guarda en Google Drive para archivo.
+            </div>
+        </div>
+
+        <!-- CONTACTO -->
+        <div class="section">
+            <h2>📞 ¿Necesitas ayuda?</h2>
+            <p>Si tienes problemas técnicos con la aplicación:</p>
+            <div class="info-box">
+                <strong>Contacto:</strong> Luis Hori - Desarrollo de sistemas<br>
+                Reporta cualquier error o mejora que necesites.
+            </div>
+        </div>
+
+    </div>
+
+    <div class="footer">
+        <p><strong>Scanner de Embarque VPC v3.0</strong></p>
+        <p>Desarrollado por Luis Hori</p>
+        <p style="margin-top:10px; font-size:0.8em; color:#999;">
+            Este documento es propiedad de Vida Produce Company (VPC).<br>
+            Prohibida su reproducción sin autorización.
+        </p>
+    </div>
+
+</body>
+</html>

@@ -1,0 +1,34 @@
+# Google Cloud credentials - NEVER commit this!
+credentials.json
+
+# Environment variables
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Temporary files
+*.tmp
+*.temp
+uploads/
+temp/
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
