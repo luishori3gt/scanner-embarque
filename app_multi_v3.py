@@ -535,7 +535,13 @@ def upload_pdf():
     pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], f"{pedido_id}_{pdf_file.filename}")
     pdf_file.save(pdf_path)
 
-    picking_items, header_data = extraer_picking_pdf(pdf_path)
+    try:
+        picking_items, header_data = extraer_picking_pdf(pdf_path)
+    except Exception as e:
+        print(f"[PDF] Error extrayendo picking: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Error leyendo PDF: {str(e)}"}), 500
 
     PEDIDOS_DB[pedido_id] = {
         'pedido_cache': {},
@@ -568,7 +574,12 @@ def upload_pdf():
         PEDIDOS_DB[pedido_id]['pedido_cache'][lote]['pedido'] += item['cantidad_pedido']
 
     # Persistir pedido en base de datos
-    database.save_pedido_activo(pedido_id, PEDIDOS_DB[pedido_id]['info'], PEDIDOS_DB[pedido_id]['pedido_cache'])
+    try:
+        database.save_pedido_activo(pedido_id, PEDIDOS_DB[pedido_id]['info'], PEDIDOS_DB[pedido_id]['pedido_cache'])
+    except Exception as e:
+        print(f"[DB] Error guardando pedido activo: {e}")
+        import traceback
+        traceback.print_exc()
 
     base_url = request.form.get('base_url', request.host_url.rstrip('/'))
     if 'RENDER_EXTERNAL_URL' in os.environ:
@@ -652,7 +663,12 @@ def upload_excel():
         PEDIDOS_DB[pedido_id]['pedido_cache'][lote]['pedido'] += item['cantidad_pedido']
 
     # Persistir pedido en base de datos
-    database.save_pedido_activo(pedido_id, PEDIDOS_DB[pedido_id]['info'], PEDIDOS_DB[pedido_id]['pedido_cache'])
+    try:
+        database.save_pedido_activo(pedido_id, PEDIDOS_DB[pedido_id]['info'], PEDIDOS_DB[pedido_id]['pedido_cache'])
+    except Exception as e:
+        print(f"[DB] Error guardando pedido activo: {e}")
+        import traceback
+        traceback.print_exc()
 
     base_url = request.form.get('base_url', request.host_url.rstrip('/'))
     if 'RENDER_EXTERNAL_URL' in os.environ:
