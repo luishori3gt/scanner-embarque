@@ -267,7 +267,95 @@
         <div class="header">
             <img src="/static/logo-vpc.png" alt="VPC Logo" class="logo" onerror="this.style.display='none'">
             <h1>🔍 Control de Embarque - ADMIN</h1>
-            <p>Panel de Administración v3 - QR Auto + Tiempos + Inventario + Monitoreo</p>
+            <p>Panel de Administración v4 - QR Auto + Tiempos + Inventario + Monitoreo</p>
+        </div>
+
+        <!-- BANNER APP MEJORADA -->
+        <div id="bannerMejoras" style="background:linear-gradient(135deg,#27ae60,#2ecc71); color:white; border-radius:12px; padding:15px 25px; margin-bottom:15px; display:flex; align-items:center; justify-content:space-between; box-shadow:0 4px 20px rgba(39,174,96,0.4); animation:slideIn 0.5s ease;">
+            <div style="display:flex; align-items:center; gap:12px;">
+                <span style="font-size:1.8em;">🚀</span>
+                <div>
+                    <div style="font-weight:bold; font-size:1.1em;">Aplicación mejorada - Soporta multiescaneo</div>
+                    <div style="font-size:0.85em; opacity:0.9;">Persistencia en la nube + multi-operador + prevención de duplicados</div>
+                </div>
+            </div>
+            <div style="display:flex; gap:10px;">
+                <button onclick="abrirModalMejoras()" style="background:white; color:#27ae60; border:none; padding:8px 20px; border-radius:8px; font-weight:bold; cursor:pointer; font-size:0.9em;">✨ Ver mejoras</button>
+                <button onclick="cerrarBannerMejoras()" style="background:rgba(255,255,255,0.3); color:white; border:none; padding:8px 15px; border-radius:8px; cursor:pointer; font-size:0.9em;">✕</button>
+            </div>
+        </div>
+
+        <!-- MODAL DE MEJORAS -->
+        <div id="modalMejoras" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9999; justify-content:center; align-items:center;">
+            <div style="background:white; border-radius:16px; padding:30px; max-width:550px; width:90%; max-height:85vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                    <h2 style="color:#1a5276; font-size:1.4em;">🚀 Nuevas Mejoras v4</h2>
+                    <button onclick="cerrarModalMejoras()" style="background:#e74c3c; color:white; border:none; width:36px; height:36px; border-radius:50%; cursor:pointer; font-size:1.1em;">✕</button>
+                </div>
+
+                <div style="margin-bottom:18px;">
+                    <div style="display:flex; align-items:start; gap:12px; margin-bottom:15px;">
+                        <span style="font-size:1.8em;">☁️</span>
+                        <div>
+                            <div style="font-weight:bold; color:#1a5276; font-size:1em;">Persistencia en la nube (Turso)</div>
+                            <div style="color:#555; font-size:0.88em; margin-top:3px;">Los pedidos activos, scans e historial <b>ya no se pierden</b> al reiniciar el servidor. Todo se guarda en base de datos en la nube.</div>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; align-items:start; gap:12px; margin-bottom:15px;">
+                        <span style="font-size:1.8em;">📱</span>
+                        <div>
+                            <div style="font-weight:bold; color:#1a5276; font-size:1em;">Multiescaneo (2+ celulares)</div>
+                            <div style="color:#555; font-size:0.88em; margin-top:3px;">Varios operadores pueden escanear el <b>mismo pedido</b> simultáneamente. Los contadores se suman correctamente con bloqueo atomico.</div>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; align-items:start; gap:12px; margin-bottom:15px;">
+                        <span style="font-size:1.8em;">🚫</span>
+                        <div>
+                            <div style="font-weight:bold; color:#1a5276; font-size:1em;">Prevención de QR duplicado</div>
+                            <div style="color:#555; font-size:0.88em; margin-top:3px;">Si un operador escanea una caja que <b>ya fue escaneada</b>, se rechaza con alerta amarilla. No se suman cajas duplicadas.</div>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; align-items:start; gap:12px; margin-bottom:15px;">
+                        <span style="font-size:1.8em;">🔄</span>
+                        <div>
+                            <div style="font-weight:bold; color:#1a5276; font-size:1em;">Recovery automático</div>
+                            <div style="color:#555; font-size:0.88em; margin-top:3px;">Si el servidor se reinicia, los pedidos en curso se <b>recuperan automáticamente</b> con todos sus scans y progreso.</div>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; align-items:start; gap:12px; margin-bottom:15px;">
+                        <span style="font-size:1.8em;">📊</span>
+                        <div>
+                            <div style="font-weight:bold; color:#1a5276; font-size:1em;">Auditoría por operador</div>
+                            <div style="color:#555; font-size:0.88em; margin-top:3px;">Cada scan registra <b>quién lo hizo</b>, a qué hora y el QR completo. El dashboard muestra cajas por operador y su %.</div>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; align-items:start; gap:12px;">
+                        <span style="font-size:1.8em;">⚡</span>
+                        <div>
+                            <div style="font-weight:bold; color:#1a5276; font-size:1em;">Persistencia en tiempo real</div>
+                            <div style="color:#555; font-size:0.88em; margin-top:3px;">Cada scan se guarda en la base de datos <b>inmediatamente</b>, no espera al final. Cero pérdida de datos.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="background:#e8f4fd; border-radius:10px; padding:15px; text-align:center; margin-bottom:15px;">
+                    <div style="color:#2980b9; font-size:0.85em; font-weight:bold;">💡 Cómo usar multiescaneo</div>
+                    <div style="color:#555; font-size:0.82em; margin-top:8px; text-align:left; line-height:1.6;">
+                        1. Sube el PDF/Excel del picking<br>
+                        2. Comparte el QR con los operadores<br>
+                        3. Cada operador escanea el QR y entra con su código<br>
+                        4. Ambos escanean cajas simultáneamente<br>
+                        5. El dashboard muestra el total combinado
+                    </div>
+                </div>
+
+                <button onclick="cerrarModalMejoras()" style="width:100%; background:linear-gradient(135deg,#27ae60,#2ecc71); color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; font-size:1em; cursor:pointer;">Entendido</button>
+            </div>
         </div>
 
         <!-- ESTADÍSTICAS GLOBALES -->
@@ -921,6 +1009,24 @@
         // Auto-refresh stats
         autoRefreshStats = setInterval(refreshStats, 5000);
         refreshStats();
+
+        // === BANNER Y MODAL DE MEJORAS ===
+        function abrirModalMejoras() {
+            document.getElementById('modalMejoras').style.display = 'flex';
+        }
+        function cerrarModalMejoras() {
+            document.getElementById('modalMejoras').style.display = 'none';
+        }
+        function cerrarBannerMejoras() {
+            document.getElementById('bannerMejoras').style.display = 'none';
+            try { localStorage.setItem('bannerMejorasCerrado', '1'); } catch(e) {}
+        }
+        // Restaurar estado del banner
+        try {
+            if (localStorage.getItem('bannerMejorasCerrado') === '1') {
+                document.getElementById('bannerMejoras').style.display = 'none';
+            }
+        } catch(e) {}
     </script>
 </body>
 </html>
