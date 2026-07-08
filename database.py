@@ -470,7 +470,7 @@ def load_pedidos_activos():
             pedidos[pedido_id] = {
                 'pedido_cache': {},
                 'escaneos_cache': defaultdict(lambda: {'cantidad': 0, 'timestamp': [], 'scans': []}),
-                'qr_escaneados': set(),
+                'ultimos_scans': {},
                 'info': {
                     'fecha_creacion': row.get('fecha_creacion') or '',
                     'nombre_archivo': row.get('nombre_archivo') or '',
@@ -513,10 +513,6 @@ def load_pedidos_activos():
                     'cantidad': scan_row.get('cantidad') or 1,
                     'usuario': scan_row.get('usuario') or ''
                 })
-                # Restaurar QR para prevencion de duplicados
-                qr_val = (scan_row.get('qr_data') or '').strip()[:200]
-                if qr_val:
-                    pedidos[pedido_id]['qr_escaneados'].add(qr_val)
 
             # Cargar items fuera de pedido
             cur.execute('SELECT * FROM pedidos_fuera WHERE pedido_id = ?', (pedido_id,))

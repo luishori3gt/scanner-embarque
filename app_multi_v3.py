@@ -546,7 +546,7 @@ def upload_pdf():
     PEDIDOS_DB[pedido_id] = {
         'pedido_cache': {},
         'escaneos_cache': defaultdict(lambda: {'cantidad': 0, 'timestamp': [], 'scans': []}),
-        'qr_escaneados': set(),
+        'ultimos_scans': {},
         'info': {
             'fecha_creacion': now_mx_str("%d/%m/%Y %H:%M:%S"),
             'nombre_archivo': pdf_file.filename,
@@ -635,7 +635,7 @@ def upload_excel():
     PEDIDOS_DB[pedido_id] = {
         'pedido_cache': {},
         'escaneos_cache': defaultdict(lambda: {'cantidad': 0, 'timestamp': [], 'scans': []}),
-        'qr_escaneados': set(),
+        'ultimos_scans': {},
         'info': {
             'fecha_creacion': now_mx_str("%d/%m/%Y %H:%M:%S"),
             'nombre_archivo': excel_file.filename,
@@ -1224,21 +1224,28 @@ def scan_qr(pedido_id):
     # es rapida (< 1ms) asi que no hay delay percibido
     # ============================================================
     with SCAN_LOCK:
-        # --- PREVENCION DE QR DUPLICADO ---
-        # Conjunto de QRs ya escaneados en este pedido
-        if 'qr_escaneados' not in db:
-            db['qr_escaneados'] = set()
+        # --- PREVENCION DE DOBLE SCAN ACCIDENTAL ---
+        # Solo bloquear si el MISMO operador escanea el MISMO QR
+        # en menos de 3 segundos (double-tap accidental del mismo operador)
+        # Permitir QRs repetidos en cajas diferentes (normal en VPC)
+        if 'ultimos_scans' not in db:
+            db['ultimos_scans'] = {}  # {qr_key: {usuario: timestamp_epoch}}
         qr_key = qr_data.strip()[:200]
-        if qr_key in db['qr_escaneados']:
-            # QR ya fue escaneado - rechazar
-            return jsonify({
-                "success": False,
-                "duplicado": True,
-                "error": "QR YA ESCANEADO",
-                "lote": lote,
-                "descripcion": pedido_cache.get(lote, {}).get('descripcion', 'N/A')
-            })
-        db['qr_escaneados'].add(qr_key)
+        ahora_epoch = now_mx().timestamp()
+        if qr_key in db['ultimos_scans']:
+            ultimo = db['ultimos_scans'][qr_key]
+            ultimo_usuario = ultimo.get('usuario', '')
+            ultimo_tiempo = ultimo.get('tiempo', 0)
+            # Solo bloquear si mismo operador y menos de 3 segundos
+            if ultimo_usuario == usuario and (ahora_epoch - ultimo_tiempo) < 3:
+                return jsonify({
+                    "success": False,
+                    "duplicado": True,
+                    "error": "QR YA ESCANEADO",
+                    "lote": lote,
+                    "descripcion": pedido_cache.get(lote, {}).get('descripcion', 'N/A')
+                })
+        db['ultimos_scans'][qr_key] = {'usuario': usuario, 'tiempo': ahora_epoch}
 
         # Iniciar timer automáticamente en primer scan (solo una vez)
         if db['info']['inicio_scan'] is None:
