@@ -547,10 +547,16 @@ def upload_pdf():
         traceback.print_exc()
         return jsonify({"error": f"Error leyendo PDF: {str(e)}"}), 500
 
+    # Detectar si el cliente requiere modo tarima (pedidos masivos)
+    cliente = header_data.get('cliente', '').upper()
+    modo_tarima = ('COSTCO' in cliente) or ('WAL MART' in cliente) or ('WALMART' in cliente)
+
     PEDIDOS_DB[pedido_id] = {
         'pedido_cache': {},
         'escaneos_cache': defaultdict(lambda: {'cantidad': 0, 'timestamp': [], 'scans': []}),
         'ultimos_scans': {},
+        'modo_tarima': modo_tarima,
+        'tarima_pendiente': {},  # {lote: contador_scans} para tracking de 3 scans
         'info': {
             'fecha_creacion': now_mx_str("%d/%m/%Y %H:%M:%S"),
             'nombre_archivo': pdf_file.filename,
@@ -611,7 +617,8 @@ def upload_pdf():
         "pedido_id": pedido_id,
         "resumen": resumen,
         "url_operador": url_operador,
-        "qr_url": f"/qr_image/{pedido_id}"
+        "qr_url": f"/qr_image/{pedido_id}",
+        "modo_tarima": modo_tarima
     })
 
 @app.route("/upload_excel", methods=["POST"])
@@ -704,7 +711,8 @@ def upload_excel():
         "pedido_id": pedido_id,
         "resumen": resumen,
         "url_operador": url_operador,
-        "qr_url": f"/qr_image/{pedido_id}"
+        "qr_url": f"/qr_image/{pedido_id}",
+        "modo_tarima": False
     })
 
 @app.route("/qr_image/<pedido_id>")
@@ -852,7 +860,8 @@ def get_status(pedido_id):
     return jsonify({
         "resumen": resumen,
         "resultados": resultados,
-        "info": db['info']
+        "info": db['info'],
+        "modo_tarima": db.get('modo_tarima', False)
     })
 
 # ============================================================
@@ -1274,17 +1283,66 @@ def scan_qr(pedido_id):
                 db['info']['usuario_operador'] = usuario
 
         # Guardar scan con usuario
-        escaneos_cache[lote]['cantidad'] += cantidad
         escaneos_cache[lote]['timestamp'].append(timestamp)
         escaneos_cache[lote]['scans'].append({
             'hora': timestamp,
             'qr': qr_data[:50],
             'cantidad': cantidad,
-            'usuario': usuario  # NUEVO: quien escaneo
+            'usuario': usuario
         })
 
-        if lote in pedido_cache:
-            pedido_cache[lote]['escaneado'] = escaneos_cache[lote]['cantidad']
+        # --- MODO TARIMA (COSTCO / WALMART) ---
+        # En modo tarima, las 3 primeras cajas son verificación (no se cuentan)
+        # Después de 3 scans del mismo lote, se solicita el número de cajas por tarima
+        if db.get('modo_tarima', False):
+            if 'tarima_pendiente' not in db:
+                db['tarima_pendiente'] = {}
+            tarima_pend = db['tarima_pendiente']
+            tarima_pend[lote] = tarima_pend.get(lote, 0) + 1
+
+            if tarima_pend[lote] < 3:
+                # Scans de verificación (1 y 2) - NO sumar al total
+                # Marcar como verificación
+                escaneos_cache[lote]['scans'][-1]['verificacion'] = True
+                if lote in pedido_cache:
+                    pedido_cache[lote]['escaneado'] = escaneos_cache[lote]['cantidad']
+
+                return jsonify({
+                    "success": True,
+                    "verificacion_tarima": True,
+                    "scan_verificacion": tarima_pend[lote],
+                    "lote": lote,
+                    "descripcion": pedido_cache.get(lote, {}).get('descripcion', 'N/A'),
+                    "pedido": pedido_cache.get(lote, {}).get('pedido', 0),
+                    "escaneado": escaneos_cache[lote]['cantidad'],
+                    "timestamp": timestamp,
+                    "mensaje": f"Verificación {tarima_pend[lote]}/3 - Escanea otra caja del mismo lote"
+                })
+
+            if tarima_pend[lote] >= 3:
+                # 3 scans completados - solicitar cajas por tarima al operador
+                # Reset contador para próxima tarima del mismo lote
+                tarima_pend[lote] = 0
+                # Marcar el 3er scan como verificación también
+                escaneos_cache[lote]['scans'][-1]['verificacion'] = True
+                if lote in pedido_cache:
+                    pedido_cache[lote]['escaneado'] = escaneos_cache[lote]['cantidad']
+
+                return jsonify({
+                    "success": True,
+                    "solicitar_tarima": True,
+                    "lote": lote,
+                    "descripcion": pedido_cache.get(lote, {}).get('descripcion', 'N/A'),
+                    "pedido": pedido_cache.get(lote, {}).get('pedido', 0),
+                    "escaneado": escaneos_cache[lote]['cantidad'],
+                    "timestamp": timestamp,
+                    "mensaje": "3 cajas verificadas. Ingresa cajas por tarima."
+                })
+        else:
+            # Modo normal: sumar cada scan al total
+            escaneos_cache[lote]['cantidad'] += cantidad
+            if lote in pedido_cache:
+                pedido_cache[lote]['escaneado'] = escaneos_cache[lote]['cantidad']
 
     # Persistir scan en base de datos (tiempo real)
     try:
@@ -1328,6 +1386,78 @@ def scan_qr(pedido_id):
             "es_nuevo": True,
             "alerta": "Este lote NO esta en el picking!",
             "total_scans": len(escaneos_cache[lote]['scans'])
+        })
+
+@app.route("/registrar_tarima/<pedido_id>", methods=["POST"])
+def registrar_tarima(pedido_id):
+    """Registrar cajas por tarima en modo tarima (COSTCO/WALMART)"""
+    if pedido_id not in PEDIDOS_DB:
+        return jsonify({"error": "Pedido no encontrado"}), 404
+
+    db = PEDIDOS_DB[pedido_id]
+    if not db.get('modo_tarima', False):
+        return jsonify({"error": "Este pedido no esta en modo tarima"}), 400
+
+    data = request.get_json()
+    lote = data.get('lote', '')
+    cajas_por_tarima = data.get('cajas_por_tarima', 0)
+    usuario = data.get('usuario', '')
+
+    if not lote or cajas_por_tarima <= 0:
+        return jsonify({"error": "Lote y cajas_por_tarima son requeridos"}), 400
+
+    pedido_cache = db['pedido_cache']
+    escaneos_cache = db['escaneos_cache']
+    timestamp = now_mx_str("%H:%M:%S")
+
+    with SCAN_LOCK:
+        # Sumar las cajas por tarima al total
+        escaneos_cache[lote]['cantidad'] += cajas_por_tarima
+        escaneos_cache[lote]['timestamp'].append(timestamp)
+        escaneos_cache[lote]['scans'].append({
+            'hora': timestamp,
+            'qr': f'TARIMA:{cajas_por_tarima}',
+            'cantidad': cajas_por_tarima,
+            'usuario': usuario,
+            'es_tarima': True
+        })
+
+        if lote in pedido_cache:
+            pedido_cache[lote]['escaneado'] = escaneos_cache[lote]['cantidad']
+
+    # Persistir
+    try:
+        database.save_scan(pedido_id, lote, f'TARIMA:{cajas_por_tarima}', cajas_por_tarima, usuario, timestamp)
+    except Exception as e:
+        print(f"[DB] Error guardando tarima: {e}")
+
+    if lote in pedido_cache:
+        pedido = pedido_cache[lote]['pedido']
+        escaneado = pedido_cache[lote]['escaneado']
+        estado, color, texto = calcular_estado(pedido, escaneado)
+
+        return jsonify({
+            "success": True,
+            "lote": lote,
+            "descripcion": pedido_cache[lote]['descripcion'],
+            "pedido": pedido,
+            "escaneado": escaneado,
+            "diferencia": escaneado - pedido,
+            "estado": estado,
+            "color": color,
+            "texto_estado": texto,
+            "timestamp": timestamp,
+            "cajas_registradas": cajas_por_tarima,
+            "total_scans": len(escaneos_cache[lote]['scans'])
+        })
+    else:
+        return jsonify({
+            "success": True,
+            "lote": lote,
+            "descripcion": "NO EN PEDIDO",
+            "escaneado": escaneos_cache[lote]['cantidad'],
+            "cajas_registradas": cajas_por_tarima,
+            "timestamp": timestamp
         })
 
 @app.route("/finalizar/<pedido_id>")

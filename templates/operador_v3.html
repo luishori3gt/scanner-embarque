@@ -406,6 +406,12 @@
         <div class="card">
             <h3 style="color:#1a5276; margin-bottom:10px; text-align:center;">📷 Escanear Etiquetas</h3>
 
+            <!-- BANNER MODO TARIMA -->
+            <div id="tarimaBanner" class="hidden" style="background:linear-gradient(135deg, #8e44ad, #9b59b6); color:white; padding:12px; border-radius:10px; margin-bottom:15px; text-align:center; font-weight:bold; font-size:0.9em;">
+                📦 MODO TARIMA ACTIVADO<br>
+                <span style="font-size:0.8em; font-weight:normal;">Escanea 3 cajas del mismo lote → ingresa cajas por tarima</span>
+            </div>
+
             <div class="modo-toggle">
                 <button class="modo-btn activo" id="btnModoCamara" onclick="cambiarModo('camara')">📷 CÁMARA</button>
                 <button class="modo-btn" id="btnModoManual" onclick="cambiarModo('manual')">⌨️ MANUAL</button>
@@ -554,6 +560,28 @@
         <div class="details" id="alertDetails"></div>
     </div>
 
+    <!-- PANTALLA TARIMA - Input de cajas por tarima (COSTCO/WALMART) -->
+    <div id="tarimaInputScreen" class="scan-alert-screen hidden" style="background:rgba(0,0,0,0.85);">
+        <div style="background:white; border-radius:16px; padding:30px; max-width:400px; width:90%; text-align:center; box-shadow:0 10px 40px rgba(0,0,0,0.3);">
+            <div style="font-size:3em; margin-bottom:10px;">📦</div>
+            <div style="font-size:1.4em; font-weight:bold; color:#1a5276; margin-bottom:8px;">3 CAJAS VERIFICADAS</div>
+            <div id="tarimaDescripcion" style="color:#666; margin-bottom:5px; font-size:0.9em;"></div>
+            <div style="color:#999; font-size:0.8em; margin-bottom:20px;">Lote: <span id="tarimaLote"></span></div>
+            <div style="color:#333; font-size:1em; margin-bottom:15px; font-weight:bold;">Ingresa el número de cajas por tarima:</div>
+            <input type="number" id="tarimaCajasInput" min="1" max="9999" placeholder="Ej: 120"
+                   style="font-size:2em; text-align:center; width:100%; padding:15px; border:3px solid #2980b9; border-radius:10px; margin-bottom:15px; box-sizing:border-box;"
+                   onkeydown="if(event.key==='Enter') confirmarTarima()">
+            <div style="display:flex; gap:10px;">
+                <button onclick="confirmarTarima()" style="flex:1; background:linear-gradient(135deg, #27ae60, #2ecc71); color:white; font-size:1.2em; padding:18px; border:none; border-radius:10px; font-weight:bold; box-shadow:0 4px 15px rgba(39,174,96,0.4);">
+                    ✅ CONFIRMAR
+                </button>
+                <button onclick="cancelarTarima()" style="flex:1; background:linear-gradient(135deg, #e74c3c, #c0392b); color:white; font-size:1.2em; padding:18px; border:none; border-radius:10px; font-weight:bold;">
+                    ❌ CANCELAR
+                </button>
+            </div>
+        </div>
+    </div>
+
     <div class="footer">
         <p>Desarrollado por Luis Hori</p>
     </div>
@@ -570,6 +598,8 @@
         let timeoutQR = null;
         let timerInterval = null;
         let scanIniciado = false;
+        let modoTarima = false;
+        let tarimaLotePendiente = null;
 
         autoRefresh = setInterval(refreshData, 3000);
         refreshData();
@@ -754,6 +784,29 @@
                         iniciarTimerVisual();
                     }
 
+                    // --- MODO TARIMA: verificación de 3 cajas ---
+                    if (data.verificacion_tarima) {
+                        mostrarPantallaAlerta('📦 VERIFICACIÓN ' + data.scan_verificacion + '/3',
+                            (data.descripcion || 'N/A') + ' | Lote: ' + (data.lote || '-') + '<br>' + (data.mensaje || ''),
+                            'amarillo');
+                        playOKSound();
+                        refreshData();
+                        return;
+                    }
+
+                    // --- MODO TARIMA: solicitar cajas por tarima ---
+                    if (data.solicitar_tarima) {
+                        tarimaLotePendiente = data.lote;
+                        document.getElementById('tarimaDescripcion').textContent = data.descripcion || 'N/A';
+                        document.getElementById('tarimaLote').textContent = data.lote || '-';
+                        document.getElementById('tarimaCajasInput').value = '';
+                        document.getElementById('tarimaInputScreen').classList.remove('hidden');
+                        setTimeout(() => document.getElementById('tarimaCajasInput').focus(), 300);
+                        playOKSound();
+                        refreshData();
+                        return;
+                    }
+
                     // MOSTRAR PANTALLA SEGÚN RESULTADO
                     if (data.color === 'verde') {
                         // ✅ OK COMPLETO - Pantalla verde
@@ -792,6 +845,62 @@
                         'Verifica tu conexion a internet o que el servidor este activo', 'rojo');
                 }
             });
+        }
+
+        // --- MODO TARIMA: Confirmar cajas por tarima ---
+        function confirmarTarima() {
+            const cajas = parseInt(document.getElementById('tarimaCajasInput').value);
+            if (!cajas || cajas <= 0) {
+                mostrarPantallaAlerta('⚠️ VALOR INVÁLIDO', 'Ingresa un número válido de cajas', 'amarillo');
+                return;
+            }
+            if (!tarimaLotePendiente) {
+                document.getElementById('tarimaInputScreen').classList.add('hidden');
+                return;
+            }
+
+            const usuario = document.getElementById('usuarioInput').value.trim().toUpperCase();
+            const lote = tarimaLotePendiente;
+
+            fetch('/registrar_tarima/' + pedidoId, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ lote: lote, cajas_por_tarima: cajas, usuario: usuario })
+            })
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('tarimaInputScreen').classList.add('hidden');
+                tarimaLotePendiente = null;
+
+                if (data.success) {
+                    if (data.color === 'verde') {
+                        mostrarPantallaExito(data.descripcion, data.lote,
+                            '📦 TARIMA: ' + cajas + ' cajas<br>' + data.escaneado + '/' + data.pedido + ' ✅ COMPLETO');
+                    } else if (data.color === 'rojo') {
+                        const faltan = Math.abs(data.diferencia);
+                        mostrarPantallaExito(data.descripcion, data.lote,
+                            '📦 TARIMA: ' + cajas + ' cajas<br>Escaneado: ' + data.escaneado + ' | FALTAN: ' + faltan);
+                    } else {
+                        mostrarPantallaExito(data.descripcion, data.lote,
+                            '📦 TARIMA: ' + cajas + ' cajas registradas');
+                    }
+                    playOKSound();
+                    refreshData();
+                } else {
+                    mostrarPantallaAlerta('❌ ERROR', data.error || 'No se pudo registrar la tarima', 'rojo');
+                }
+            })
+            .catch(err => {
+                document.getElementById('tarimaInputScreen').classList.add('hidden');
+                tarimaLotePendiente = null;
+                mostrarPantallaAlerta('❌ ERROR DE CONEXIÓN', 'Verifica tu conexión a internet', 'rojo');
+            });
+        }
+
+        // --- MODO TARIMA: Cancelar input de tarima ---
+        function cancelarTarima() {
+            document.getElementById('tarimaInputScreen').classList.add('hidden');
+            tarimaLotePendiente = null;
         }
 
         // MOSTRAR PANTALLA VERDE DE ÉXITO
@@ -862,6 +971,11 @@
                 if (data.error) {
                     console.log('Error en get_status:', data.error);
                     return;
+                }
+                if (data.modo_tarima) {
+                    modoTarima = true;
+                    const banner = document.getElementById('tarimaBanner');
+                    if (banner) banner.classList.remove('hidden');
                 }
                 if (data.resumen) {
                     updateStats(data.resumen);
