@@ -1306,6 +1306,104 @@ def download_detalle_sesiones():
     return send_file(output, download_name="Detalle_Sesiones.xlsx", as_attachment=True)
 
 # ============================================================
+# BACKUP / RESTORE - Copia de seguridad de sesiones activas
+# ============================================================
+
+@app.route("/download_backup")
+def download_backup():
+    """Exportar todos los pedidos activos en memoria como JSON para backup"""
+    backup = {
+        'version': 2,
+        'fecha_export': now_mx_str("%d/%m/%Y %H:%M:%S"),
+        'total_pedidos': len(PEDIDOS_DB),
+        'pedidos': {}
+    }
+
+    for pid, db in PEDIDOS_DB.items():
+        backup['pedidos'][pid] = {
+            'pedido_cache': dict(db['pedido_cache']),
+            'escaneos_cache': {lote: {
+                'cantidad': data['cantidad'],
+                'timestamp': list(data['timestamp']),
+                'scans': list(data['scans'])
+            } for lote, data in db['escaneos_cache'].items()},
+            'ultimos_scans': db.get('ultimos_scans', {}),
+            'modo_tarima': db.get('modo_tarima', False),
+            'tarima_pendiente': db.get('tarima_pendiente', {}),
+            'info': db['info']
+        }
+
+    backup_json = json.dumps(backup, ensure_ascii=False, indent=2, default=str)
+    output = io.BytesIO(backup_json.encode('utf-8'))
+    output.seek(0)
+
+    filename = f"backup_scanner_{now_mx_str('%Y%m%d_%H%M%S')}.json"
+    return send_file(output, download_name=filename, as_attachment=True,
+                     mimetype='application/json')
+
+@app.route("/restore_backup", methods=["POST"])
+def restore_backup():
+    """Importar backup JSON y restaurar todos los pedidos activos"""
+    global PEDIDOS_DB
+
+    backup_file = request.files.get('backup_file')
+    if not backup_file:
+        return jsonify({"error": "Se requiere archivo de backup"}), 400
+
+    try:
+        content = backup_file.read().decode('utf-8')
+        backup = json.loads(content)
+    except Exception as e:
+        return jsonify({"error": f"Error leyendo JSON: {str(e)}"}), 400
+
+    if 'pedidos' not in backup:
+        return jsonify({"error": "Formato de backup invalido"}), 400
+
+    restaurados = 0
+    errores = []
+
+    for pid, ped_data in backup['pedidos'].items():
+        try:
+            pedido_cache = ped_data.get('pedido_cache', {})
+            escaneos_raw = ped_data.get('escaneos_cache', {})
+            info = ped_data.get('info', {})
+
+            # Reconstruir escaneos_cache como defaultdict
+            escaneos_cache = defaultdict(lambda: {'cantidad': 0, 'timestamp': [], 'scans': []})
+            for lote, data in escaneos_raw.items():
+                escaneos_cache[lote] = {
+                    'cantidad': data.get('cantidad', 0),
+                    'timestamp': data.get('timestamp', []),
+                    'scans': data.get('scans', [])
+                }
+
+            PEDIDOS_DB[pid] = {
+                'pedido_cache': pedido_cache,
+                'escaneos_cache': escaneos_cache,
+                'ultimos_scans': ped_data.get('ultimos_scans', {}),
+                'modo_tarima': ped_data.get('modo_tarima', False),
+                'tarima_pendiente': ped_data.get('tarima_pendiente', {}),
+                'info': info
+            }
+
+            # Persistir en Turso/SQLite
+            try:
+                database.save_pedido_activo(pid, info, pedido_cache)
+            except Exception as e:
+                print(f"[DB] Error persistiendo pedido restaurado {pid}: {e}")
+
+            restaurados += 1
+        except Exception as e:
+            errores.append(f"{pid}: {str(e)}")
+
+    return jsonify({
+        "success": True,
+        "restaurados": restaurados,
+        "errores": errores,
+        "mensaje": f"{restaurados} pedidos restaurados correctamente"
+    })
+
+# ============================================================
 # RUTAS: OPERADOR (CELULAR) - ESCANEAR QR
 # ============================================================
 

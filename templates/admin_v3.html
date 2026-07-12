@@ -582,6 +582,13 @@
                     <button class="btn btn-download" onclick="downloadUsoAcumulado()">📊 Descargar Uso Acumulado</button>
                     <button class="btn btn-download" onclick="downloadDetalleSesiones()" style="margin-left:10px;">📋 Descargar Detalle por Sesión</button>
                 </div>
+                <div class="center" style="margin-top:15px; padding-top:15px; border-top:1px solid #eee;">
+                    <h3 style="color:#1a5276; margin-bottom:10px;">💾 Copia de Seguridad</h3>
+                    <p style="color:#666; font-size:0.85em; margin-bottom:10px;">Descarga un backup de todas las sesiones activas. Si el servidor reinicia, puedes restaurar y continuar donde lo dejaste.</p>
+                    <button class="btn btn-download" onclick="downloadBackup()" style="background:linear-gradient(135deg, #2980b9, #3498db);">💾 Exportar Backup</button>
+                    <button class="btn btn-download" onclick="document.getElementById('restoreFileInput').click()" style="margin-left:10px; background:linear-gradient(135deg, #d35400, #e67e22);">📥 Importar Backup</button>
+                    <input type="file" id="restoreFileInput" accept=".json" style="display:none;" onchange="restoreBackup(event)">
+                </div>
             </div>
         </div>
     </div>
@@ -983,6 +990,39 @@
         }
         function downloadDetalleSesiones() {
             window.location.href = '/download_detalle_sesiones';
+        }
+        function downloadBackup() {
+            window.location.href = '/download_backup';
+        }
+        function restoreBackup(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            if (!confirm('¿Seguro que quieres restaurar este backup? Se agregaran los pedidos del archivo a los actuales.')) {
+                event.target.value = '';
+                return;
+            }
+            const formData = new FormData();
+            formData.append('backup_file', file);
+            fetch('/restore_backup', {
+                method: 'POST',
+                body: formData
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    alert('✅ ' + data.mensaje + '\nRestaurados: ' + data.restaurados);
+                    if (data.errores && data.errores.length > 0) {
+                        alert('⚠️ Errores en algunos pedidos:\n' + data.errores.join('\n'));
+                    }
+                    refreshMonitoreo();
+                } else {
+                    alert('❌ Error: ' + data.error);
+                }
+            })
+            .catch(err => {
+                alert('❌ Error de conexion: ' + err.message);
+            });
+            event.target.value = '';
         }
         function guardarDrive(tipo) {
             if (!pedidoId) return;
