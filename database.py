@@ -357,6 +357,17 @@ def init_db():
         ''')
         cur.execute('INSERT OR IGNORE INTO app_stats (id, sesiones_totales, cajas_escaneadas_totales) VALUES (1, 0, 0)')
 
+        # Tabla de backups automaticos (se guarda el JSON completo del backup)
+        cur.execute('''
+            CREATE TABLE IF NOT EXISTS backups (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                fecha TEXT NOT NULL,
+                total_pedidos INTEGER DEFAULT 0,
+                backup_json TEXT,
+                created_at TIMESTAMPTZ DEFAULT now()
+            )
+        ''')
+
         # Indices para performance
         cur.execute('CREATE INDEX IF NOT EXISTS idx_items_pid ON pedidos_items(pedido_id)')
         cur.execute('CREATE INDEX IF NOT EXISTS idx_scans_pid ON pedidos_scans(pedido_id)')
@@ -729,4 +740,37 @@ def get_pedido_detalle_db(pedido_id):
         'usuario_operador': row.get('usuario_operador') or '',
         'tiempo_total': row.get('tiempo_total') or '',
         'embarque': row.get('embarque') or ''
+    }
+
+
+# ============================================================
+# BACKUPS AUTOMATICOS
+# ============================================================
+def save_backup_db(fecha, total_pedidos, backup_json):
+    """Guardar un backup en Turso y borrar los anteriores (mantener solo el ultimo)"""
+    # Borrar backups anteriores
+    _execute('DELETE FROM backups', commit=True)
+    # Insertar el nuevo backup
+    _execute(
+        'INSERT INTO backups (fecha, total_pedidos, backup_json) VALUES (?, ?, ?)',
+        (fecha, total_pedidos, backup_json),
+        commit=True
+    )
+    print(f"[DB] Backup guardado: {total_pedidos} pedidos, fecha {fecha}")
+
+
+def get_latest_backup_db():
+    """Obtener el backup mas reciente desde Turso"""
+    row = _execute(
+        'SELECT * FROM backups ORDER BY id DESC LIMIT 1',
+        fetchone=True
+    )
+    if not row:
+        return None
+    return {
+        'id': row.get('id'),
+        'fecha': row.get('fecha', ''),
+        'total_pedidos': row.get('total_pedidos', 0),
+        'backup_json': row.get('backup_json', ''),
+        'created_at': str(row.get('created_at', ''))
     }

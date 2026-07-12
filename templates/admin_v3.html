@@ -584,9 +584,12 @@
                 </div>
                 <div class="center" style="margin-top:15px; padding-top:15px; border-top:1px solid #eee;">
                     <h3 style="color:#1a5276; margin-bottom:10px;">💾 Copia de Seguridad</h3>
-                    <p style="color:#666; font-size:0.85em; margin-bottom:10px;">Descarga un backup de todas las sesiones activas. Si el servidor reinicia, puedes restaurar y continuar donde lo dejaste.</p>
-                    <button class="btn btn-download" onclick="downloadBackup()" style="background:linear-gradient(135deg, #2980b9, #3498db);">💾 Exportar Backup</button>
-                    <button class="btn btn-download" onclick="document.getElementById('restoreFileInput').click()" style="margin-left:10px; background:linear-gradient(135deg, #d35400, #e67e22);">📥 Importar Backup</button>
+                    <p style="color:#666; font-size:0.85em; margin-bottom:10px;">Backup automatico diario a las 23:00 (guardado en Turso). Solo se mantiene el ultimo backup.</p>
+                    <div id="backupTursoInfo" style="margin-bottom:10px; padding:10px; background:#f8f9fa; border-radius:8px; font-size:0.85em; color:#555;"></div>
+                    <button class="btn btn-download" onclick="downloadBackup()" style="background:linear-gradient(135deg, #2980b9, #3498db);">💾 Exportar Backup (Ahora)</button>
+                    <button class="btn btn-download" onclick="downloadBackupTurso()" style="margin-left:10px; background:linear-gradient(135deg, #27ae60, #2ecc71);">📥 Descargar Backup de Turso</button>
+                    <button class="btn btn-download" onclick="forceBackup()" style="margin-left:10px; background:linear-gradient(135deg, #8e44ad, #9b59b6);">⚡ Forzar Backup a Turso</button>
+                    <button class="btn btn-download" onclick="document.getElementById('restoreFileInput').click()" style="margin-left:10px; background:linear-gradient(135deg, #d35400, #e67e22);">� Importar Backup</button>
                     <input type="file" id="restoreFileInput" accept=".json" style="display:none;" onchange="restoreBackup(event)">
                 </div>
             </div>
@@ -974,6 +977,7 @@
                     `;
                 });
                 document.getElementById('monitoreoBody').innerHTML = html;
+                loadBackupInfo();
             });
         }
 
@@ -993,6 +997,38 @@
         }
         function downloadBackup() {
             window.location.href = '/download_backup';
+        }
+        function downloadBackupTurso() {
+            window.location.href = '/download_backup_turso';
+        }
+        function forceBackup() {
+            fetch('/force_backup')
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    alert('✅ ' + data.mensaje + '\nPedidos: ' + data.total_pedidos + '\nFecha: ' + data.fecha);
+                    loadBackupInfo();
+                } else {
+                    alert('❌ Error: ' + data.error);
+                }
+            })
+            .catch(err => alert('❌ Error: ' + err.message));
+        }
+        function loadBackupInfo() {
+            fetch('/get_backup_info')
+            .then(r => r.json())
+            .then(data => {
+                const el = document.getElementById('backupTursoInfo');
+                if (!el) return;
+                if (data.hay_backup) {
+                    el.innerHTML = '✅ <b>Ultimo backup en Turso:</b> ' + data.fecha + ' | ' + data.total_pedidos + ' pedidos';
+                    el.style.color = '#27ae60';
+                } else {
+                    el.innerHTML = '⚠️ No hay backup guardado en Turso ainda';
+                    el.style.color = '#e67e22';
+                }
+            })
+            .catch(() => {});
         }
         function restoreBackup(event) {
             const file = event.target.files[0];

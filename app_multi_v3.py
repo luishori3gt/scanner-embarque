@@ -209,6 +209,76 @@ USO_STATS = {
     'historial': []
 }
 
+# ============================================================
+# BACKUP AUTOMATICO DIARIO
+# ============================================================
+def _generar_backup_json():
+    """Generar JSON de backup de todos los pedidos activos"""
+    backup = {
+        'version': 2,
+        'fecha_export': now_mx_str("%d/%m/%Y %H:%M:%S"),
+        'total_pedidos': len(PEDIDOS_DB),
+        'pedidos': {}
+    }
+    for pid, db in PEDIDOS_DB.items():
+        backup['pedidos'][pid] = {
+            'pedido_cache': dict(db['pedido_cache']),
+            'escaneos_cache': {lote: {
+                'cantidad': data['cantidad'],
+                'timestamp': list(data['timestamp']),
+                'scans': list(data['scans'])
+            } for lote, data in db['escaneos_cache'].items()},
+            'ultimos_scans': db.get('ultimos_scans', {}),
+            'modo_tarima': db.get('modo_tarima', False),
+            'tarima_pendiente': db.get('tarima_pendiente', {}),
+            'info': db['info']
+        }
+    return backup
+
+def _guardar_backup_turso():
+    """Guardar backup actual en Turso (borra el anterior)"""
+    try:
+        backup = _generar_backup_json()
+        backup_json = json.dumps(backup, ensure_ascii=False, default=str)
+        database.save_backup_db(
+            fecha=backup['fecha_export'],
+            total_pedidos=backup['total_pedidos'],
+            backup_json=backup_json
+        )
+        print(f"[BACKUP] Backup automatico guardado: {backup['total_pedidos']} pedidos")
+    except Exception as e:
+        print(f"[BACKUP] Error guardando backup: {e}")
+
+def _backup_diario_thread():
+    """Hilo que hace backup automatico a las 23:00 cada dia"""
+    import time
+    while True:
+        try:
+            ahora = now_mx()
+            # Calcular proximas 23:00
+            proximo_backup = ahora.replace(hour=23, minute=0, second=0, microsecond=0)
+            if ahora >= proximo_backup:
+                # Ya paso las 23:00 hoy, programar para manana
+                from datetime import timedelta
+                proximo_backup = proximo_backup + timedelta(days=1)
+            segundos_espera = (proximo_backup - ahora).total_seconds()
+            print(f"[BACKUP] Proximo backup automatico: {proximo_backup.strftime('%d/%m/%Y %H:%M')} ({int(segundos_espera)}s)")
+            time.sleep(min(segundos_espera, 3600))  # Revisar cada hora max
+            # Verificar si ya es hora
+            if now_mx().hour >= 23:
+                _guardar_backup_turso()
+                time.sleep(3600)  # Esperar 1h para no repetir
+        except Exception as e:
+            print(f"[BACKUP] Error en hilo de backup: {e}")
+            time.sleep(3600)
+
+# Guardar backup al iniciar la app (por si se reinicia)
+_guardar_backup_turso()
+
+# Iniciar hilo de backup diario
+_backup_thread = threading.Thread(target=_backup_diario_thread, daemon=True)
+_backup_thread.start()
+
 def parse_cantidad(val_str):
     """Convierte cantidad europea (1.200,00) o americana (1200.00) a float."""
     if not val_str:
@@ -1312,27 +1382,7 @@ def download_detalle_sesiones():
 @app.route("/download_backup")
 def download_backup():
     """Exportar todos los pedidos activos en memoria como JSON para backup"""
-    backup = {
-        'version': 2,
-        'fecha_export': now_mx_str("%d/%m/%Y %H:%M:%S"),
-        'total_pedidos': len(PEDIDOS_DB),
-        'pedidos': {}
-    }
-
-    for pid, db in PEDIDOS_DB.items():
-        backup['pedidos'][pid] = {
-            'pedido_cache': dict(db['pedido_cache']),
-            'escaneos_cache': {lote: {
-                'cantidad': data['cantidad'],
-                'timestamp': list(data['timestamp']),
-                'scans': list(data['scans'])
-            } for lote, data in db['escaneos_cache'].items()},
-            'ultimos_scans': db.get('ultimos_scans', {}),
-            'modo_tarima': db.get('modo_tarima', False),
-            'tarima_pendiente': db.get('tarima_pendiente', {}),
-            'info': db['info']
-        }
-
+    backup = _generar_backup_json()
     backup_json = json.dumps(backup, ensure_ascii=False, indent=2, default=str)
     output = io.BytesIO(backup_json.encode('utf-8'))
     output.seek(0)
@@ -1340,6 +1390,51 @@ def download_backup():
     filename = f"backup_scanner_{now_mx_str('%Y%m%d_%H%M%S')}.json"
     return send_file(output, download_name=filename, as_attachment=True,
                      mimetype='application/json')
+
+@app.route("/download_backup_turso")
+def download_backup_turso():
+    """Descargar el ultimo backup automatico guardado en Turso"""
+    try:
+        backup = database.get_latest_backup_db()
+        if not backup or not backup.get('backup_json'):
+            return jsonify({"error": "No hay backups guardados en Turso"}), 404
+
+        output = io.BytesIO(backup['backup_json'].encode('utf-8'))
+        output.seek(0)
+        fecha = backup.get('fecha', 'desconocida').replace('/', '').replace(' ', '_').replace(':', '')
+        filename = f"backup_turso_{fecha}.json"
+        return send_file(output, download_name=filename, as_attachment=True,
+                         mimetype='application/json')
+    except Exception as e:
+        return jsonify({"error": f"Error: {str(e)}"}), 500
+
+@app.route("/force_backup")
+def force_backup():
+    """Forzar guardado de backup en Turso ahora"""
+    _guardar_backup_turso()
+    backup = database.get_latest_backup_db()
+    return jsonify({
+        "success": True,
+        "mensaje": "Backup guardado en Turso",
+        "fecha": backup.get('fecha', '') if backup else '',
+        "total_pedidos": backup.get('total_pedidos', 0) if backup else 0
+    })
+
+@app.route("/get_backup_info")
+def get_backup_info():
+    """Obtener info del ultimo backup guardado en Turso"""
+    try:
+        backup = database.get_latest_backup_db()
+        if not backup:
+            return jsonify({"hay_backup": False})
+        return jsonify({
+            "hay_backup": True,
+            "fecha": backup.get('fecha', ''),
+            "total_pedidos": backup.get('total_pedidos', 0),
+            "created_at": backup.get('created_at', '')
+        })
+    except Exception as e:
+        return jsonify({"hay_backup": False, "error": str(e)})
 
 @app.route("/restore_backup", methods=["POST"])
 def restore_backup():
