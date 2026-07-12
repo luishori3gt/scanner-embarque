@@ -1188,6 +1188,123 @@ def download_uso_acumulado():
 
     return send_file(output, download_name="Uso_Acumulado.xlsx", as_attachment=True)
 
+@app.route("/download_detalle_sesiones")
+def download_detalle_sesiones():
+    """Exportar Excel con detalle por sesion: item, cajas pedido, cajas escaneadas, diferencia"""
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Detalle por Sesion'
+
+    headers = ['Sesion ID', 'Cliente', 'Destinatario', 'Embarque', 'Entrega Nro',
+               'Fecha Inicio', 'Fecha Fin', 'Usuario', 'Status',
+               'Codigo', 'Descripcion', 'Lote', 'Calibre', 'Categoria',
+               'Cajas Packing List', 'Cajas Escaneadas', 'Diferencia', 'Estado']
+    ws.append(headers)
+
+    # 1. Pedidos activos en memoria (incluye abiertos y cerrados)
+    for pid, db in PEDIDOS_DB.items():
+        info = db['info']
+        header = info.get('header_data', {})
+        status = 'CERRADO' if info['fin_scan'] else 'ABIERTO'
+        pedido_cache = db['pedido_cache']
+        escaneos_cache = db['escaneos_cache']
+
+        for lote, data in pedido_cache.items():
+            estado, color, texto = calcular_estado(data['pedido'], data['escaneado'])
+            ws.append([
+                pid,
+                header.get('cliente', ''),
+                header.get('destinatario', ''),
+                header.get('embarque', ''),
+                header.get('entrega_nro', ''),
+                info.get('inicio_scan', '') or '',
+                info.get('fin_scan', '') or '',
+                info.get('usuario_operador', '') or '',
+                status,
+                data['codigo'],
+                data['descripcion'],
+                lote,
+                data['calibre'],
+                data['categoria'],
+                data['pedido'],
+                data['escaneado'],
+                data['escaneado'] - data['pedido'],
+                texto
+            ])
+
+        # Items fuera de pedido (sobrantes)
+        for lote, data in escaneos_cache.items():
+            if lote not in pedido_cache:
+                inv_data = INVENTARIO_DB.get(lote, {})
+                ws.append([
+                    pid,
+                    header.get('cliente', ''),
+                    header.get('destinatario', ''),
+                    header.get('embarque', ''),
+                    header.get('entrega_nro', ''),
+                    info.get('inicio_scan', '') or '',
+                    info.get('fin_scan', '') or '',
+                    info.get('usuario_operador', '') or '',
+                    status,
+                    inv_data.get('codigo', 'NO EN PEDIDO'),
+                    inv_data.get('descripcion', 'Producto no listado'),
+                    lote,
+                    inv_data.get('calibre', '-'),
+                    inv_data.get('categoria', '-'),
+                    0,
+                    data['cantidad'],
+                    data['cantidad'],
+                    'SOBRANTE INESPERADO'
+                ])
+
+    # 2. Pedidos historicos en base de datos
+    try:
+        historial_db = cargar_historial_db()
+        for h in historial_db:
+            header = h['header_data']
+            resultados = h.get('resultados', [])
+            for r in resultados:
+                ws.append([
+                    h['pedido_id'],
+                    header.get('cliente', ''),
+                    header.get('destinatario', ''),
+                    header.get('embarque', ''),
+                    header.get('entrega_nro', ''),
+                    h.get('fecha_creacion', '') or '',
+                    h.get('fecha_finalizacion', '') or '',
+                    h.get('usuario_operador', '') or '',
+                    'CERRADO',
+                    r.get('codigo', ''),
+                    r.get('descripcion', ''),
+                    r.get('lote', ''),
+                    r.get('calibre', ''),
+                    r.get('categoria', ''),
+                    r.get('pedido', 0),
+                    r.get('escaneado', 0),
+                    r.get('diferencia', 0),
+                    r.get('estado', '')
+                ])
+    except Exception as e:
+        print(f"[DB] Error cargando historial para detalle: {e}")
+
+    # Auto-ajustar columnas
+    for col in ws.columns:
+        max_length = 0
+        col_letter = col[0].column_letter
+        for cell in col:
+            try:
+                if cell.value and len(str(cell.value)) > max_length:
+                    max_length = len(str(cell.value))
+            except:
+                pass
+        ws.column_dimensions[col_letter].width = min(max_length + 2, 30)
+
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    return send_file(output, download_name="Detalle_Sesiones.xlsx", as_attachment=True)
+
 # ============================================================
 # RUTAS: OPERADOR (CELULAR) - ESCANEAR QR
 # ============================================================

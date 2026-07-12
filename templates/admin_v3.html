@@ -580,6 +580,7 @@
                 </div>
                 <div class="center" style="margin-top:20px;">
                     <button class="btn btn-download" onclick="downloadUsoAcumulado()">📊 Descargar Uso Acumulado</button>
+                    <button class="btn btn-download" onclick="downloadDetalleSesiones()" style="margin-left:10px;">📋 Descargar Detalle por Sesión</button>
                 </div>
             </div>
         </div>
@@ -979,6 +980,9 @@
         }
         function downloadUsoAcumulado() {
             window.location.href = '/download_uso_acumulado';
+        }
+        function downloadDetalleSesiones() {
+            window.location.href = '/download_detalle_sesiones';
         }
         function guardarDrive(tipo) {
             if (!pedidoId) return;
